@@ -1,0 +1,69 @@
+[
+  {
+    "id": "31d564b1-1d0c-4db9-83af-98ca58ef56f7",
+    "name": "Atlas Wireless Headphones",
+    "sku": "ATL-HDP-001",
+    "description": "Over-ear wireless headphones with active noise cancellation, USB-C fast charging, and 32-hour battery life.",
+    "price": 179.0,
+    "currency": "USD",
+    "category": "audio",
+    "inventory_status": "in_stock",
+    "attributes": ["bluetooth 5.3", "noise cancellation", "32-hour battery", "usb-c"]
+  },
+  {
+    "id": "7ddfc3cb-63af-48f7-8b58-d7d73c669f44",
+    "name": "Northstar Everyday Backpack",
+    "sku": "NOR-BAG-020",
+    "description": "Water-resistant commuter backpack with a 16-inch laptop sleeve and modular interior pockets.",
+    "price": 96.0,
+    "currency": "USD",
+    "category": "bags",
+    "inventory_status": "in_stock",
+    "attributes": ["water-resistant", "laptop sleeve", "carry-on friendly"]
+  },
+  {
+    "id": "1fc4dd16-4257-4030-a7e5-b6d3df4b0b93",
+    "name": "Luma Smart Desk Lamp",
+    "sku": "LUM-LMP-210",
+    "description": "Adjustable LED desk lamp with touch dimming, color temperature presets, and a built-in USB charging port.",
+    "price": 72.0,
+    "currency": "USD",
+    "category": "home office",
+    "inventory_status": "low_stock",
+    "attributes": ["touch dimming", "usb charging", "warm and cool light"]
+  },
+  {
+    "id": "e21bf2e0-db5a-4db8-b3b4-6e779d9584b8",
+    "name": "Terra Insulated Bottle",
+    "sku": "TER-BTL-145",
+    "description": "Vacuum-insulated stainless steel bottle that keeps drinks cold for 24 hours or hot for 12 hours.",
+    "price": 34.0,
+    "currency": "USD",
+    "category": "lifestyle",
+    "inventory_status": "in_stock",
+    "attributes": ["24-hour cold", "12-hour hot", "bpa free"]
+  },
+  {
+    "id": "dcab0f8d-677a-41bc-aad8-c15db3be89d2",
+    "name": "Drift Performance Sneakers",
+    "sku": "DRF-SHO-440",
+    "description": "Lightweight knit sneakers designed for all-day wear with responsive foam cushioning.",
+    "price": 128.0,
+    "currency": "USD",
+    "category": "footwear",
+    "inventory_status": "backorder",
+    "attributes": ["knit upper", "foam cushioning", "everyday comfort"]
+  },
+  {
+    "id": "9088117f-9dd8-443c-90c4-2e093f00f8a6",
+    "name": "Mira Ceramic Skincare Fridge",
+    "sku": "MIR-BEA-305",
+    "description": "Compact mini fridge for skincare storage with quiet cooling mode and a mirrored front door.",
+    "price": 149.0,
+    "currency": "USD",
+    "category": "beauty tech",
+    "inventory_status": "in_stock",
+    "attributes": ["quiet cooling", "mirrored door", "compact"]
+  }
+]
+

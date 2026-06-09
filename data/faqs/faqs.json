@@ -1,0 +1,51 @@
+[
+  {
+    "id": "2f7f27ca-4b61-4a90-a0c0-21b6f4ce0401",
+    "question": "How long does shipping take?",
+    "answer": "Standard shipping takes 3 to 5 business days. Express shipping takes 1 to 2 business days after the order is processed.",
+    "category": "shipping",
+    "keywords": ["shipping", "delivery", "arrival", "express", "standard"]
+  },
+  {
+    "id": "78e5544a-a98b-4aa0-b1c3-3514aa45c250",
+    "question": "Can I return an item if I changed my mind?",
+    "answer": "Yes. Unused items in original packaging can be returned within 30 days of delivery. Final-sale items are excluded.",
+    "category": "returns",
+    "keywords": ["return", "exchange", "changed my mind", "policy", "30 days"]
+  },
+  {
+    "id": "ed4f4d7d-16d2-4e2f-a345-ddc52f75cad8",
+    "question": "When are refunds issued?",
+    "answer": "Approved refunds are sent to the original payment method within 5 to 7 business days after the return is inspected.",
+    "category": "refund",
+    "keywords": ["refund", "money back", "business days", "payment method"]
+  },
+  {
+    "id": "5f7f0119-3751-478a-a973-fa5a0a58f9ab",
+    "question": "Why was my card declined?",
+    "answer": "Card declines can happen because of billing address mismatches, insufficient funds, or bank fraud checks. Customers should retry or contact their bank.",
+    "category": "payments",
+    "keywords": ["payment", "card", "declined", "bank", "billing"]
+  },
+  {
+    "id": "0f04c08f-7a48-4b55-83eb-9c7894d64817",
+    "question": "How do I reset my account password?",
+    "answer": "Use the Forgot Password link on the sign-in page. A reset email is sent within a few minutes.",
+    "category": "account",
+    "keywords": ["password", "login", "account", "reset", "sign in"]
+  },
+  {
+    "id": "95931b57-f76b-4c5c-8db9-6b3d1fa58589",
+    "question": "How can I track my order?",
+    "answer": "Open the order confirmation email or your account orders page to view tracking details once the package ships.",
+    "category": "orders",
+    "keywords": ["track", "order", "package", "tracking", "shipment"]
+  },
+  {
+    "id": "070f6d80-3fd2-4362-b84f-7f2287fc675c",
+    "question": "Do you offer warranty coverage for electronics?",
+    "answer": "Select electronics include a one-year limited warranty covering manufacturing defects. Accidental damage is not included.",
+    "category": "product",
+    "keywords": ["warranty", "electronics", "defect", "coverage"]
+  }
+]
