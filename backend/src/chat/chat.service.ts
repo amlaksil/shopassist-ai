@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 
 import { AiService } from '../ai/ai.service';
+import { OrderService } from '../commerce/order.service';
 import {
   AiProviderError,
   type AiProviderFailureCode
@@ -32,6 +33,7 @@ export class ChatService {
 
   constructor(
     private readonly aiService: AiService,
+    private readonly orderService: OrderService,
     private readonly knowledgeBaseService: KnowledgeBaseService,
     private readonly conversationService: ConversationService,
     private readonly ticketService: TicketService
@@ -60,6 +62,19 @@ export class ChatService {
     });
 
     try {
+      const orderTrackingResponse = await this.orderService.handleTrackingIntent({
+        message: normalizedMessage,
+        session_id: request.session_id,
+        customer,
+        order_number: request.order_number,
+        checkout_email: request.checkout_email
+      });
+
+      if (orderTrackingResponse) {
+        await this.persistAssistantResponse(orderTrackingResponse, customer);
+        return orderTrackingResponse;
+      }
+
       const [context, history] = await Promise.all([
         this.knowledgeBaseService.findRelevantContext(normalizedMessage),
         this.conversationService.getHistory(request.session_id)
@@ -137,24 +152,7 @@ export class ChatService {
         };
       }
 
-      await this.conversationService.touchConversation({
-        session_id: request.session_id,
-        status: response.status,
-        provider_used: providerResponse.provider,
-        latest_message: response.answer,
-        customer_name: customer.name ?? null,
-        customer_email: customer.email ?? null,
-        issue_category: response.category
-      });
-
-      await this.conversationService.recordMessage({
-        session_id: request.session_id,
-        role: 'assistant',
-        content: response.answer,
-        provider_used: providerResponse.provider,
-        model_used: providerResponse.model,
-        status: response.status
-      });
+      await this.persistAssistantResponse(response, customer);
 
       return response;
     } catch (error) {
@@ -226,24 +224,7 @@ export class ChatService {
         ticket_id: ticket.id
       };
 
-      await this.conversationService.touchConversation({
-        session_id: input.sessionId,
-        status: response.status,
-        provider_used: input.providerError.provider,
-        latest_message: response.answer,
-        customer_name: input.customer.name ?? null,
-        customer_email: input.customer.email ?? null,
-        issue_category: response.category
-      });
-
-      await this.conversationService.recordMessage({
-        session_id: input.sessionId,
-        role: 'assistant',
-        content: response.answer,
-        provider_used: input.providerError.provider,
-        model_used: 'unavailable',
-        status: response.status
-      });
+      await this.persistAssistantResponse(response, input.customer);
 
       return response;
     }
@@ -260,26 +241,33 @@ export class ChatService {
       missing_customer_fields: missingCustomerFields
     };
 
+    await this.persistAssistantResponse(response, input.customer);
+
+    return response;
+  }
+
+  private async persistAssistantResponse(
+    response: ChatResponsePayload,
+    customer: CustomerInfo
+  ) {
     await this.conversationService.touchConversation({
-      session_id: input.sessionId,
+      session_id: response.session_id,
       status: response.status,
-      provider_used: input.providerError.provider,
+      provider_used: response.provider,
       latest_message: response.answer,
-      customer_name: input.customer.name ?? null,
-      customer_email: input.customer.email ?? null,
+      customer_name: customer.name ?? null,
+      customer_email: customer.email ?? null,
       issue_category: response.category
     });
 
     await this.conversationService.recordMessage({
-      session_id: input.sessionId,
+      session_id: response.session_id,
       role: 'assistant',
       content: response.answer,
-      provider_used: input.providerError.provider,
-      model_used: 'unavailable',
+      provider_used: response.provider,
+      model_used: response.model,
       status: response.status
     });
-
-    return response;
   }
 
   private buildProviderFailureAnswer(

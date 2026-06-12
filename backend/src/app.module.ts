@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
 import { AiModule } from './ai/ai.module';
 import { ChatModule } from './chat/chat.module';
+import { CommerceModule } from './commerce/commerce.module';
 import { validateEnv } from './config/env.validation';
 import { ConversationModule } from './conversation/conversation.module';
 import { HealthModule } from './health/health.module';
@@ -19,6 +20,7 @@ import { TicketModule } from './ticket/ticket.module';
     }),
     SupabaseModule,
     AiModule,
+    CommerceModule,
     KnowledgeBaseModule,
     ConversationModule,
     TicketModule,
@@ -28,4 +30,3 @@ import { TicketModule } from './ticket/ticket.module';
   ]
 })
 export class AppModule {}
-

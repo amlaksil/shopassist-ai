@@ -1,0 +1,34 @@
+[
+  {
+    "id": "6a4835c1-8948-44cc-a7b7-ae814ec0e593",
+    "customer_code": "CUST-1001",
+    "name": "Hanna Bekele",
+    "email": "hanna.bekele@example.com",
+    "created_at": "2026-05-02T10:00:00.000Z",
+    "updated_at": "2026-06-11T15:30:00.000Z"
+  },
+  {
+    "id": "511cf0f5-09c3-4da4-8c43-065e7d3ba12e",
+    "customer_code": "CUST-1002",
+    "name": "Daniel Tesfaye",
+    "email": "daniel.tesfaye@example.com",
+    "created_at": "2026-05-19T09:15:00.000Z",
+    "updated_at": "2026-06-12T08:40:00.000Z"
+  },
+  {
+    "id": "019afbe8-5848-430b-9cf9-0b1dcd827035",
+    "customer_code": "CUST-1003",
+    "name": "Eden Ali",
+    "email": "eden.ali@example.com",
+    "created_at": "2026-06-01T12:20:00.000Z",
+    "updated_at": "2026-06-11T18:10:00.000Z"
+  },
+  {
+    "id": "5a5cbd89-d68b-4e04-b80b-712ceba07943",
+    "customer_code": "CUST-1004",
+    "name": "Naomi Rivera",
+    "email": "naomi.rivera@example.com",
+    "created_at": "2026-04-26T14:05:00.000Z",
+    "updated_at": "2026-06-10T16:25:00.000Z"
+  }
+]

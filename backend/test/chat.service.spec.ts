@@ -5,6 +5,9 @@ describe('ChatService', () => {
   const aiService = {
     generateResponse: jest.fn()
   };
+  const orderService = {
+    handleTrackingIntent: jest.fn()
+  };
   const knowledgeBaseService = {
     findRelevantContext: jest.fn()
   };
@@ -24,6 +27,7 @@ describe('ChatService', () => {
     jest.resetAllMocks();
     service = new ChatService(
       aiService as never,
+      orderService as never,
       knowledgeBaseService as never,
       conversationService as never,
       ticketService as never
@@ -34,6 +38,7 @@ describe('ChatService', () => {
       products: [],
       summary: 'Returns are accepted within 30 days.'
     });
+    orderService.handleTrackingIntent.mockResolvedValue(null);
     conversationService.touchConversation.mockResolvedValue({});
     conversationService.recordMessage.mockResolvedValue({});
     conversationService.getHistory.mockResolvedValue([
@@ -100,6 +105,27 @@ describe('ChatService', () => {
     expect(response.status).toBe('ticket_created');
     expect(response.ticket_id).toBe('ticket_12345678');
     expect(ticketService.createTicket).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the order tracking service before calling the AI provider', async () => {
+    orderService.handleTrackingIntent.mockResolvedValue({
+      session_id: 'session_4',
+      answer: 'Order ORD-1001 was delivered.',
+      status: 'answered',
+      category: 'orders',
+      confidence: 'high',
+      provider: 'system',
+      model: 'commerce-demo-v1'
+    });
+
+    const response = await service.handleChat({
+      message: 'Where is my order ORD-1001?',
+      session_id: 'session_4'
+    });
+
+    expect(response.status).toBe('answered');
+    expect(response.category).toBe('orders');
+    expect(aiService.generateResponse).not.toHaveBeenCalled();
   });
 
   it('falls back to ticket collection when the provider is unavailable', async () => {

@@ -5,11 +5,17 @@ import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 
 import type {
+  CustomerRecord,
   ConversationRecord,
   ConversationStatus,
   DashboardStats,
   FaqArticle,
+  OrderItemRecord,
+  OrderRecord,
   Product,
+  RefundRecord,
+  ReturnRecord,
+  ShipmentRecord,
   StoredMessage,
   SupportTicket
 } from '../common/types/app.types';
@@ -54,6 +60,12 @@ export class DataStoreService {
   private readonly supabase: SupabaseClient | null;
   private readonly localFaqArticles: FaqArticle[];
   private readonly localProducts: Product[];
+  private readonly localCustomers: CustomerRecord[];
+  private readonly localOrders: OrderRecord[];
+  private readonly localOrderItems: OrderItemRecord[];
+  private readonly localShipments: ShipmentRecord[];
+  private readonly localReturns: ReturnRecord[];
+  private readonly localRefunds: RefundRecord[];
   private readonly localConversations = new Map<string, ConversationRecord>();
   private readonly localMessages: StoredMessage[] = [];
   private readonly localTickets: SupportTicket[] = [];
@@ -71,6 +83,12 @@ export class DataStoreService {
 
     this.localFaqArticles = this.loadJsonFile<FaqArticle[]>('data/faqs/faqs.json');
     this.localProducts = this.loadJsonFile<Product[]>('data/products/products.json');
+    this.localCustomers = this.loadJsonFile<CustomerRecord[]>('data/commerce/customers.json');
+    this.localOrders = this.loadJsonFile<OrderRecord[]>('data/commerce/orders.json');
+    this.localOrderItems = this.loadJsonFile<OrderItemRecord[]>('data/commerce/order-items.json');
+    this.localShipments = this.loadJsonFile<ShipmentRecord[]>('data/commerce/shipments.json');
+    this.localReturns = this.loadJsonFile<ReturnRecord[]>('data/commerce/returns.json');
+    this.localRefunds = this.loadJsonFile<RefundRecord[]>('data/commerce/refunds.json');
   }
 
   getStorageMode() {
@@ -129,6 +147,96 @@ export class DataStoreService {
     }
 
     return (data ?? []) as Product[];
+  }
+
+  async getCustomers(): Promise<CustomerRecord[]> {
+    if (!this.supabase) {
+      return this.localCustomers;
+    }
+
+    const { data, error } = await this.supabase.from('customers').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local customer data: ${error.message}`);
+      return this.localCustomers;
+    }
+
+    return (data ?? []) as CustomerRecord[];
+  }
+
+  async getOrders(): Promise<OrderRecord[]> {
+    if (!this.supabase) {
+      return this.localOrders;
+    }
+
+    const { data, error } = await this.supabase.from('orders').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local order data: ${error.message}`);
+      return this.localOrders;
+    }
+
+    return (data ?? []) as OrderRecord[];
+  }
+
+  async getOrderItems(): Promise<OrderItemRecord[]> {
+    if (!this.supabase) {
+      return this.localOrderItems;
+    }
+
+    const { data, error } = await this.supabase.from('order_items').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local order item data: ${error.message}`);
+      return this.localOrderItems;
+    }
+
+    return (data ?? []) as OrderItemRecord[];
+  }
+
+  async getShipments(): Promise<ShipmentRecord[]> {
+    if (!this.supabase) {
+      return this.localShipments;
+    }
+
+    const { data, error } = await this.supabase.from('shipments').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local shipment data: ${error.message}`);
+      return this.localShipments;
+    }
+
+    return (data ?? []) as ShipmentRecord[];
+  }
+
+  async getReturns(): Promise<ReturnRecord[]> {
+    if (!this.supabase) {
+      return this.localReturns;
+    }
+
+    const { data, error } = await this.supabase.from('returns').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local return data: ${error.message}`);
+      return this.localReturns;
+    }
+
+    return (data ?? []) as ReturnRecord[];
+  }
+
+  async getRefunds(): Promise<RefundRecord[]> {
+    if (!this.supabase) {
+      return this.localRefunds;
+    }
+
+    const { data, error } = await this.supabase.from('refunds').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local refund data: ${error.message}`);
+      return this.localRefunds;
+    }
+
+    return (data ?? []) as RefundRecord[];
   }
 
   async ensureConversation(input: EnsureConversationInput): Promise<ConversationRecord> {
