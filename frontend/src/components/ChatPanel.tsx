@@ -51,14 +51,12 @@ function toAssistantMessage(response: ChatResponse): ChatMessage {
   };
 }
 
-interface ChatPanelProps {
-  onOpenAdmin: () => void;
-}
-
-export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
+export function ChatPanel() {
   const [sessionId] = useState(DEFAULT_SESSION_ID);
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [input, setInput] = useState('');
+  const [orderContext, setOrderContext] = useState({ orderNumber: '', email: '' });
+  const [showOrderContext, setShowOrderContext] = useState(false);
   const [customer, setCustomer] = useState<CustomerInfo>({});
   const [loading, setLoading] = useState(false);
   const [ticketLoading, setTicketLoading] = useState(false);
@@ -76,6 +74,10 @@ export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
       Boolean(customer.email?.trim()) &&
       Boolean(customer.issue_summary?.trim()),
     [customer]
+  );
+  const hasOrderContext = useMemo(
+    () => Boolean(orderContext.orderNumber.trim() || orderContext.email.trim()),
+    [orderContext]
   );
   const isBusy = loading || ticketLoading;
 
@@ -108,7 +110,9 @@ export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
       const response = await sendChatMessage({
         message: trimmed,
         session_id: sessionId,
-        customer
+        customer,
+        order_number: orderContext.orderNumber.trim() || undefined,
+        checkout_email: orderContext.email.trim() || undefined
       });
 
       setLatestMeta(response);
@@ -118,6 +122,10 @@ export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
     } finally {
       setLoading(false);
     }
+  }
+
+  function clearOrderContext() {
+    setOrderContext({ orderNumber: '', email: '' });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -182,10 +190,6 @@ export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
             We keep your conversation together so a support teammate can step in without making
             you start over.
           </p>
-
-          <button className="secondary-button" onClick={onOpenAdmin} type="button">
-            Support dashboard
-          </button>
         </aside>
       </header>
 
@@ -216,6 +220,71 @@ export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
             />
           ))}
         </div>
+
+        <section className="customer-context-card" aria-label="Optional order details">
+          <div className="customer-context-card__header">
+            <div>
+              <h3>Order question?</h3>
+              <p>
+                If your question is about an order, you can add your order number or checkout
+                email here. The assistant will use it when helpful.
+              </p>
+            </div>
+            <button
+              className="secondary-button"
+              onClick={() => setShowOrderContext((current) => !current)}
+              type="button"
+            >
+              {showOrderContext ? 'Hide order details' : 'Add order details'}
+            </button>
+          </div>
+
+          {hasOrderContext ? (
+            <div className="customer-context-card__summary" role="status">
+              <span>
+                {orderContext.orderNumber.trim()
+                  ? `Using order ${orderContext.orderNumber.trim()}`
+                  : 'Using your checkout email'}
+              </span>
+              <button className="customer-context-card__clear" onClick={clearOrderContext} type="button">
+                Clear
+              </button>
+            </div>
+          ) : null}
+
+          {showOrderContext ? (
+            <div className="customer-context-card__form">
+              <label>
+                Order number
+                <input
+                  onChange={(event) =>
+                    setOrderContext((current) => ({
+                      ...current,
+                      orderNumber: event.target.value
+                    }))
+                  }
+                  placeholder="ORD-1001"
+                  type="text"
+                  value={orderContext.orderNumber}
+                />
+              </label>
+              <label>
+                Checkout email
+                <input
+                  onChange={(event) =>
+                    setOrderContext((current) => ({
+                      ...current,
+                      email: event.target.value
+                    }))
+                  }
+                  placeholder="name@example.com"
+                  type="email"
+                  value={orderContext.email}
+                />
+              </label>
+            </div>
+          ) : null}
+        </section>
 
         {error ? (
           <div className="status-banner status-banner--error" role="alert">

@@ -13,6 +13,8 @@ interface SendChatPayload {
   message: string;
   session_id: string;
   customer?: CustomerInfo;
+  order_number?: string;
+  checkout_email?: string;
 }
 
 async function handleJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
