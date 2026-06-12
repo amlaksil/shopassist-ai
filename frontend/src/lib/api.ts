@@ -1,5 +1,7 @@
 import type {
   ChatResponse,
+  ConversationHistoryMessage,
+  ConversationSummary,
   CreateTicketPayload,
   CustomerInfo,
   DashboardStats
@@ -13,6 +15,15 @@ interface SendChatPayload {
   customer?: CustomerInfo;
 }
 
+async function handleJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(error.message ?? fallbackMessage);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function sendChatMessage(payload: SendChatPayload): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
@@ -22,23 +33,30 @@ export async function sendChatMessage(payload: SendChatPayload): Promise<ChatRes
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(error.message ?? 'Unable to send message');
-  }
-
-  return response.json() as Promise<ChatResponse>;
+  return handleJsonResponse<ChatResponse>(response, 'Unable to send message');
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const response = await fetch(`${API_BASE_URL}/admin/dashboard`);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(error.message ?? 'Unable to load dashboard');
-  }
+  return handleJsonResponse<DashboardStats>(response, 'Unable to load dashboard');
+}
 
-  return response.json() as Promise<DashboardStats>;
+export async function fetchRecentConversations(): Promise<ConversationSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/conversations/recent`);
+
+  return handleJsonResponse<ConversationSummary[]>(response, 'Unable to load conversations');
+}
+
+export async function fetchConversationMessages(
+  sessionId: string
+): Promise<ConversationHistoryMessage[]> {
+  const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/messages`);
+
+  return handleJsonResponse<ConversationHistoryMessage[]>(
+    response,
+    'Unable to load conversation history'
+  );
 }
 
 export async function createSupportTicket(payload: CreateTicketPayload): Promise<ChatResponse> {
@@ -50,10 +68,5 @@ export async function createSupportTicket(payload: CreateTicketPayload): Promise
     body: JSON.stringify(payload)
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-    throw new Error(error.message ?? 'Unable to create support ticket');
-  }
-
-  return response.json() as Promise<ChatResponse>;
+  return handleJsonResponse<ChatResponse>(response, 'Unable to create support ticket');
 }

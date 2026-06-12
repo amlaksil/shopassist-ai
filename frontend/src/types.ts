@@ -1,11 +1,30 @@
 export type Sender = 'user' | 'assistant';
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type ConversationStatus =
+  | 'answered'
+  | 'clarification_needed'
+  | 'ticket_required'
+  | 'ticket_created'
+  | 'error';
+export type WorkspaceSection =
+  | 'dashboard'
+  | 'conversations'
+  | 'tickets'
+  | 'help_center'
+  | 'reports'
+  | 'settings';
+
+export interface NavigationItem {
+  id: WorkspaceSection;
+  label: string;
+}
 
 export interface ChatMessage {
   id: string;
   sender: Sender;
   content: string;
   created_at: string;
-  status?: string;
+  status?: ConversationStatus;
 }
 
 export interface CustomerInfo {
@@ -23,9 +42,9 @@ export interface CreateTicketPayload {
 export interface ChatResponse {
   session_id: string;
   answer: string;
-  status: 'answered' | 'clarification_needed' | 'ticket_required' | 'ticket_created' | 'error';
+  status: ConversationStatus;
   category: string;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: ConfidenceLevel;
   provider: string;
   model: string;
   ticket_id?: string;
@@ -37,11 +56,26 @@ export interface ConversationSummary {
   id: string;
   session_id: string;
   channel: string;
-  status: string;
+  status: ConversationStatus;
   provider_used: string;
   created_at: string;
   updated_at: string;
   latest_message: string;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  issue_category?: string | null;
+}
+
+export interface ConversationHistoryMessage {
+  id: string;
+  conversation_id: string;
+  session_id: string;
+  role: Sender;
+  content: string;
+  provider_used?: string | null;
+  model_used?: string | null;
+  status: ConversationStatus;
+  created_at: string;
 }
 
 export interface SupportTicket {
@@ -52,6 +86,8 @@ export interface SupportTicket {
   issue_summary: string;
   issue_category: string;
   status: string;
+  provider_used?: string | null;
+  model_used?: string | null;
   created_at: string;
 }
 
