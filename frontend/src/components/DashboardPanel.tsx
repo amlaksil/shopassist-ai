@@ -293,7 +293,10 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
       render: (ticket) => (
         <div className="table-identity">
           <strong>{toTitleCase(ticket.issue_category)}</strong>
-          <span>{ticket.issue_summary}</span>
+          <span>
+            {ticket.order_number ? `${ticket.order_number} · ` : ''}
+            {ticket.issue_summary}
+          </span>
         </div>
       )
     },
@@ -491,7 +494,12 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
             title="Ticket list"
           />
 
-          <TicketDetail ticket={selectedTicket} />
+          <TicketDetail
+            conversation={selectedConversation}
+            loading={previewLoading}
+            messages={conversationMessages}
+            ticket={selectedTicket}
+          />
         </section>
       ) : null}
 
@@ -855,9 +863,12 @@ function ConversationDetail({ conversation, messages, loading }: ConversationDet
 
 interface TicketDetailProps {
   ticket: SupportTicket | null;
+  conversation: ConversationSummary | null;
+  messages: ConversationHistoryMessage[];
+  loading: boolean;
 }
 
-function TicketDetail({ ticket }: TicketDetailProps) {
+function TicketDetail({ ticket, conversation, messages, loading }: TicketDetailProps) {
   if (!ticket) {
     return (
       <section className="workspace-card">
@@ -902,6 +913,10 @@ function TicketDetail({ ticket }: TicketDetailProps) {
           <dd>{toTitleCase(ticket.issue_category)}</dd>
         </div>
         <div>
+          <dt>Linked order</dt>
+          <dd>{ticket.order_number ?? 'Not attached'}</dd>
+        </div>
+        <div>
           <dt>Priority</dt>
           <dd>{toTitleCase(priority)}</dd>
         </div>
@@ -913,6 +928,10 @@ function TicketDetail({ ticket }: TicketDetailProps) {
           <dt>Last updated</dt>
           <dd>{formatDateTime(ticket.created_at)}</dd>
         </div>
+        <div>
+          <dt>Shipment status</dt>
+          <dd>{ticket.shipment_status ? toTitleCase(ticket.shipment_status) : 'Not available'}</dd>
+        </div>
       </dl>
 
       <div className="preview-transcript">
@@ -920,6 +939,46 @@ function TicketDetail({ ticket }: TicketDetailProps) {
           <strong>Customer issue</strong>
         </div>
         <p className="preview-transcript__copy">{ticket.issue_summary}</p>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>Support context</strong>
+        </div>
+        <ul className="detail-list">
+          <li>
+            <strong>Escalation reason</strong>
+            <span>{ticket.escalation_reason ?? 'Customer asked for follow-up support.'}</span>
+          </li>
+          <li>
+            <strong>Timeline summary</strong>
+            <span>{ticket.timeline_summary ?? 'No order timeline was attached to this ticket.'}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>Customer message history</strong>
+        </div>
+        {loading ? (
+          <p className="workspace-card__empty">Loading messages.</p>
+        ) : messages.length > 0 ? (
+          <ul className="preview-message-list">
+            {messages.map((message) => (
+              <li key={message.id}>
+                <strong>{message.role === 'assistant' ? 'Support assistant' : 'Customer'}</strong>
+                <span>{message.content}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="workspace-card__empty">
+            {conversation
+              ? 'No saved messages were found for this ticket yet.'
+              : 'Open a linked conversation to see the message history.'}
+          </p>
+        )}
       </div>
     </section>
   );

@@ -41,6 +41,12 @@ export function getTicketDisplayName(ticket: SupportTicket) {
 }
 
 export function getTicketSecondaryLabel(ticket: SupportTicket) {
+  if (ticket.order_number?.trim()) {
+    return ticket.email.trim()
+      ? `${ticket.email.trim()} · ${ticket.order_number.trim()}`
+      : `Order ${ticket.order_number.trim()}`;
+  }
+
   if (ticket.email.trim()) {
     return ticket.email.trim();
   }
@@ -141,7 +147,10 @@ export function derivePriorityFromConversation(conversation: ConversationSummary
     conversation.status === 'error' ||
     category.includes('refund') ||
     category.includes('payment') ||
-    category.includes('account')
+    category.includes('account') ||
+    category.includes('damaged') ||
+    category.includes('wrong_item') ||
+    category.includes('missing_delivery')
   ) {
     return 'high';
   }
@@ -150,7 +159,8 @@ export function derivePriorityFromConversation(conversation: ConversationSummary
     conversation.status === 'ticket_required' ||
     conversation.status === 'ticket_created' ||
     category.includes('return') ||
-    category.includes('order')
+    category.includes('order') ||
+    category.includes('shipping_delay')
   ) {
     return 'medium';
   }
@@ -159,13 +169,29 @@ export function derivePriorityFromConversation(conversation: ConversationSummary
 }
 
 export function derivePriorityFromTicket(ticket: SupportTicket): PriorityLevel {
+  if (ticket.priority) {
+    return ticket.priority;
+  }
+
   const category = normalizeCategory(ticket.issue_category);
 
-  if (category.includes('refund') || category.includes('payment') || category.includes('account')) {
+  if (
+    category.includes('refund') ||
+    category.includes('payment') ||
+    category.includes('account') ||
+    category.includes('damaged') ||
+    category.includes('wrong_item') ||
+    category.includes('missing_delivery')
+  ) {
     return 'high';
   }
 
-  if (category.includes('return') || category.includes('shipping') || category.includes('order')) {
+  if (
+    category.includes('return') ||
+    category.includes('shipping') ||
+    category.includes('order') ||
+    category.includes('delay')
+  ) {
     return 'medium';
   }
 

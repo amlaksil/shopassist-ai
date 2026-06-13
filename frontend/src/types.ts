@@ -1,5 +1,6 @@
 export type Sender = 'user' | 'assistant';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type PriorityLevel = 'high' | 'medium' | 'low';
 export type ConversationStatus =
   | 'answered'
   | 'clarification_needed'
@@ -33,10 +34,20 @@ export interface CustomerInfo {
   issue_summary?: string;
 }
 
+export interface TicketContextPayload {
+  order_number?: string | null;
+  checkout_email?: string | null;
+  shipment_status?: string | null;
+  escalation_reason?: string | null;
+  priority?: PriorityLevel | null;
+  timeline_summary?: string | null;
+}
+
 export interface CreateTicketPayload {
   session_id: string;
   issue_category: string;
   customer: Required<CustomerInfo>;
+  ticket_context?: TicketContextPayload;
 }
 
 export interface ChatResponse {
@@ -50,6 +61,8 @@ export interface ChatResponse {
   ticket_id?: string;
   requires_customer_details?: boolean;
   missing_customer_fields?: Array<keyof CustomerInfo>;
+  suggested_customer?: Partial<CustomerInfo>;
+  ticket_context?: TicketContextPayload;
 }
 
 export interface ConversationSummary {
@@ -86,6 +99,12 @@ export interface SupportTicket {
   issue_summary: string;
   issue_category: string;
   status: string;
+  order_number?: string | null;
+  checkout_email?: string | null;
+  shipment_status?: string | null;
+  escalation_reason?: string | null;
+  priority?: PriorityLevel | null;
+  timeline_summary?: string | null;
   provider_used?: string | null;
   model_used?: string | null;
   created_at: string;

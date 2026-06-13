@@ -88,6 +88,18 @@ export function ChatPanel() {
     });
   }, [messages, latestMeta, loading, ticketLoading]);
 
+  useEffect(() => {
+    if (!latestMeta?.suggested_customer) {
+      return;
+    }
+
+    setCustomer((current) => ({
+      name: current.name ?? latestMeta.suggested_customer?.name,
+      email: current.email ?? latestMeta.suggested_customer?.email,
+      issue_summary: current.issue_summary ?? latestMeta.suggested_customer?.issue_summary
+    }));
+  }, [latestMeta]);
+
   async function submitMessage(content: string) {
     const trimmed = content.trim();
     if (!trimmed || isBusy) {
@@ -151,7 +163,8 @@ export function ChatPanel() {
           name: customer.name!.trim(),
           email: customer.email!.trim(),
           issue_summary: customer.issue_summary!.trim()
-        }
+        },
+        ticket_context: latestMeta.ticket_context
       });
 
       setLatestMeta(response);
