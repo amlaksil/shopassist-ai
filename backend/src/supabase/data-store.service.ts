@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 
 import type {
+  AdminActivityLog,
+  AdminSessionUser,
   CustomerRecord,
   ConversationRecord,
   ConversationStatus,
@@ -77,6 +79,7 @@ export class DataStoreService {
   private readonly localConversations = new Map<string, ConversationRecord>();
   private readonly localMessages: StoredMessage[] = [];
   private readonly localTickets: SupportTicket[] = [];
+  private readonly localAdminActivityLogs: AdminActivityLog[] = [];
 
   constructor(private readonly configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
@@ -581,6 +584,49 @@ export class DataStoreService {
     }
 
     return data as SupportTicket;
+  }
+
+  async recordAdminActivity(input: {
+    actor: AdminSessionUser;
+    action: string;
+    target_type: string;
+    target_id: string;
+    details?: Record<string, unknown>;
+  }): Promise<AdminActivityLog> {
+    if (!this.supabase) {
+      const record: AdminActivityLog = {
+        id: crypto.randomUUID(),
+        actor_email: input.actor.email,
+        actor_name: input.actor.display_name,
+        action: input.action,
+        target_type: input.target_type,
+        target_id: input.target_id,
+        details: input.details ?? {},
+        created_at: new Date().toISOString()
+      };
+
+      this.localAdminActivityLogs.unshift(record);
+      return record;
+    }
+
+    const { data, error } = await this.supabase
+      .from('admin_activity_logs')
+      .insert({
+        actor_email: input.actor.email,
+        actor_name: input.actor.display_name,
+        action: input.action,
+        target_type: input.target_type,
+        target_id: input.target_id,
+        details: input.details ?? {}
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Unable to record admin activity: ${error.message}`);
+    }
+
+    return data as AdminActivityLog;
   }
 
   async getDashboardStats(): Promise<DashboardStats> {

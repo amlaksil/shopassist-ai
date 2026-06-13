@@ -55,6 +55,17 @@ on conflict (id) do update set
   category = excluded.category,
   keywords = excluded.keywords;
 
+insert into support_admin_emails (email, display_name, is_active)
+values
+  ('support@shopassist.local', 'Support Lead', true),
+  ('hana@shopassist.local', 'Hana Tesfaye', true),
+  ('samuel@shopassist.local', 'Samuel Bekele', true),
+  ('meklit@shopassist.local', 'Meklit Alemu', true)
+on conflict (email) do update set
+  display_name = excluded.display_name,
+  is_active = excluded.is_active,
+  updated_at = now();
+
 insert into products (
   id,
   name,
