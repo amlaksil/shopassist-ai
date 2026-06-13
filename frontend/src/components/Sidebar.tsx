@@ -32,13 +32,6 @@ export function Sidebar({ navigation, activeSection, onSectionChange }: SidebarP
           </button>
         ))}
       </nav>
-
-      <div className="sidebar__footer">
-        <div className="sidebar__footer-card">
-          <strong>Support handoff</strong>
-          <p>When a customer needs extra help, the conversation stays attached to the ticket.</p>
-        </div>
-      </div>
     </aside>
   );
 }

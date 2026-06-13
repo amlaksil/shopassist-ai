@@ -74,6 +74,10 @@ export function getSupportStatusLabel(status: string) {
       return 'Needs review';
     case 'open':
       return 'Open';
+    case 'in_progress':
+      return 'In progress';
+    case 'waiting_on_customer':
+      return 'Waiting on customer';
     case 'resolved':
       return 'Resolved';
     default:
@@ -113,8 +117,11 @@ export function getStatusVariant(status: string): ChipVariant {
     case 'clarification_needed':
     case 'ticket_required':
     case 'waiting':
+    case 'waiting_on_customer':
     case 'not_configured':
       return 'warning';
+    case 'in_progress':
+      return 'brand';
     case 'ticket_created':
     case 'open':
     case 'escalated':
@@ -198,8 +205,23 @@ export function derivePriorityFromTicket(ticket: SupportTicket): PriorityLevel {
   return 'low';
 }
 
-export function buildAssignedTo(status: ConversationStatus | string, escalated = false) {
-  if (status === 'ticket_created' || escalated) {
+export function buildAssignedTo(
+  status: ConversationStatus | string,
+  escalated = false,
+  assignee?: string | null
+) {
+  if (assignee?.trim()) {
+    return assignee.trim();
+  }
+
+  if (
+    status === 'ticket_created' ||
+    status === 'open' ||
+    status === 'in_progress' ||
+    status === 'waiting_on_customer' ||
+    status === 'resolved' ||
+    escalated
+  ) {
     return 'Support team';
   }
 

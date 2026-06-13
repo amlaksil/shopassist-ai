@@ -4,7 +4,8 @@ import type {
   ConversationSummary,
   CreateTicketPayload,
   CustomerInfo,
-  DashboardStats
+  DashboardStats,
+  SupportTicket
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
@@ -71,4 +72,23 @@ export async function createSupportTicket(payload: CreateTicketPayload): Promise
   });
 
   return handleJsonResponse<ChatResponse>(response, 'Unable to create support ticket');
+}
+
+export async function updateSupportTicket(payload: {
+  id: string;
+  status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
+  assignee?: string;
+}): Promise<SupportTicket> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${payload.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      status: payload.status,
+      assignee: payload.assignee
+    })
+  });
+
+  return handleJsonResponse<SupportTicket>(response, 'Unable to update support ticket');
 }

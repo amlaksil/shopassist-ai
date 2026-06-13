@@ -6,6 +6,7 @@ import { DashboardPanel } from './components/DashboardPanel';
 import type { NavigationItem, WorkspaceSection } from './types';
 
 type Experience = 'customer' | 'admin';
+type AdminViewFilter = 'all' | 'waiting' | 'resolved';
 
 function resolveExperienceFromPath(pathname: string): Experience {
   return pathname.startsWith('/admin') ? 'admin' : 'customer';
@@ -29,18 +30,6 @@ const navigationItems: NavigationItem[] = [
   {
     id: 'tickets',
     label: 'Tickets'
-  },
-  {
-    id: 'help_center',
-    label: 'Help Center'
-  },
-  {
-    id: 'reports',
-    label: 'Reports'
-  },
-  {
-    id: 'settings',
-    label: 'Settings'
   }
 ];
 
@@ -58,6 +47,7 @@ export default function App() {
     resolveExperienceFromPath(window.location.pathname)
   );
   const [activeSection, setActiveSection] = useState<WorkspaceSection>('dashboard');
+  const [adminViewFilter, setAdminViewFilter] = useState<AdminViewFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -77,6 +67,18 @@ export default function App() {
     setExperience('customer');
   }
 
+  function handleSectionChange(section: WorkspaceSection) {
+    setActiveSection(section);
+    setAdminViewFilter('all');
+    setSearchQuery('');
+  }
+
+  function handleDashboardNavigate(section: WorkspaceSection, filter: AdminViewFilter = 'all') {
+    setActiveSection(section);
+    setAdminViewFilter(filter);
+    setSearchQuery('');
+  }
+
   return experience === 'customer' ? (
     <ChatPanel />
   ) : (
@@ -85,11 +87,16 @@ export default function App() {
       navigation={navigationItems}
       onExperienceChange={openCustomerView}
       onSearchChange={setSearchQuery}
-      onSectionChange={setActiveSection}
+      onSectionChange={handleSectionChange}
       searchPlaceholder={searchPlaceholders[activeSection]}
       searchQuery={searchQuery}
     >
-      <DashboardPanel activeSection={activeSection} searchQuery={searchQuery} />
+      <DashboardPanel
+        activeSection={activeSection}
+        onNavigate={handleDashboardNavigate}
+        searchQuery={searchQuery}
+        viewFilter={adminViewFilter}
+      />
     </AppShell>
   );
 }

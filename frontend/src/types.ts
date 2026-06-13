@@ -6,6 +6,10 @@ export type ConversationStatus =
   | 'clarification_needed'
   | 'ticket_required'
   | 'ticket_created'
+  | 'open'
+  | 'in_progress'
+  | 'waiting_on_customer'
+  | 'resolved'
   | 'error';
 export type WorkspaceSection =
   | 'dashboard'
@@ -74,6 +78,7 @@ export interface ConversationSummary {
   created_at: string;
   updated_at: string;
   latest_message: string;
+  assignee?: string | null;
   customer_name?: string | null;
   customer_email?: string | null;
   issue_category?: string | null;
@@ -99,6 +104,7 @@ export interface SupportTicket {
   issue_summary: string;
   issue_category: string;
   status: string;
+  assignee?: string | null;
   order_number?: string | null;
   checkout_email?: string | null;
   shipment_status?: string | null;
@@ -108,6 +114,7 @@ export interface SupportTicket {
   provider_used?: string | null;
   model_used?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DashboardStats {
