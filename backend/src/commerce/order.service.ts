@@ -7,9 +7,11 @@ import type {
   OrderLookupPayload,
   OrderItemRecord,
   OrderRecord,
+  PriorityLevel,
   RefundRecord,
   ReturnRecord,
-  ShipmentRecord
+  ShipmentRecord,
+  TicketContextPayload
 } from '../common/types/app.types';
 import { DataStoreService } from '../supabase/data-store.service';
 
@@ -86,15 +88,24 @@ export class OrderService {
     }
 
     if (this.isRefundIntent(normalizedMessage)) {
-      return this.buildRefundResponse(input.session_id, context);
+      return this.buildRefundResponse(input.session_id, context, input.customer);
     }
 
-    if (this.isDeliveryIssueIntent(normalizedMessage) || this.isDamageIntent(normalizedMessage)) {
-      return this.buildDeliveryIssueResponse(input.session_id, context, normalizedMessage);
+    if (
+      this.isDelayedShipmentEscalationIntent(normalizedMessage, context.shipment?.status ?? null) ||
+      this.isDeliveryIssueIntent(normalizedMessage) ||
+      this.isDamageIntent(normalizedMessage)
+    ) {
+      return this.buildDeliveryIssueResponse(
+        input.session_id,
+        context,
+        normalizedMessage,
+        input.customer
+      );
     }
 
     if (this.isReturnIntent(normalizedMessage)) {
-      return this.buildReturnResponse(input.session_id, context);
+      return this.buildReturnResponse(input.session_id, context, input.customer);
     }
 
     return {
@@ -302,7 +313,8 @@ export class OrderService {
 
   private buildReturnResponse(
     sessionId: string,
-    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null }
+    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null },
+    customer?: CustomerInfo
   ): ChatResponsePayload {
     if (context.returnRecord) {
       return {
@@ -311,7 +323,7 @@ export class OrderService {
           `A return has already been opened for order ${context.order.order_number}. ` +
           `The current return status is ${context.returnRecord.status}.`,
         status: 'answered',
-        category: 'returns',
+        category: 'return_help',
         confidence: 'high',
         provider: 'system',
         model: 'commerce-demo-v1'
@@ -325,7 +337,7 @@ export class OrderService {
           `Order ${context.order.order_number} has not been delivered yet, so a return cannot be started just yet. ` +
           'Once it arrives, I can help with the next step.',
         status: 'clarification_needed',
-        category: 'returns',
+        category: 'return_help',
         confidence: 'medium',
         provider: 'system',
         model: 'commerce-demo-v1'
@@ -334,17 +346,19 @@ export class OrderService {
 
     const daysSinceDelivery = this.daysSince(context.shipment.delivered_at);
     if (daysSinceDelivery > 30) {
-      return {
-        session_id: sessionId,
+      return this.buildTicketRequiredResponse({
+        sessionId,
+        category: 'return_help',
+        issueSummary:
+          `Customer wants a return review for order ${context.order.order_number}, which appears to be outside the standard return window.`,
         answer:
-          `Order ${context.order.order_number} was delivered more than 30 days ago, so it is likely outside the standard return window. ` +
-          'If you still need help, I can connect you with support for review.',
-        status: 'clarification_needed',
-        category: 'returns',
-        confidence: 'medium',
-        provider: 'system',
-        model: 'commerce-demo-v1'
-      };
+          `Order ${context.order.order_number} was delivered more than 30 days ago, so it looks outside the standard return window. ` +
+          'I can pass this to a support teammate for review if you want a manual exception check.',
+        escalationReason: 'Outside the standard return window',
+        priority: 'medium',
+        customer,
+        context
+      });
     }
 
     return {
@@ -353,7 +367,7 @@ export class OrderService {
         `Order ${context.order.order_number} appears eligible for a return based on the delivery date. ` +
         'If you want, I can guide you through the return steps or help open a support request.',
       status: 'answered',
-      category: 'returns',
+      category: 'return_help',
       confidence: 'high',
       provider: 'system',
       model: 'commerce-demo-v1'
@@ -362,7 +376,8 @@ export class OrderService {
 
   private buildRefundResponse(
     sessionId: string,
-    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null }
+    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null },
+    customer?: CustomerInfo
   ): ChatResponsePayload {
     if (context.refundRecord) {
       const processedText = context.refundRecord.processed_at
@@ -374,7 +389,7 @@ export class OrderService {
         answer:
           `The refund for order ${context.order.order_number} is currently ${context.refundRecord.status}.${processedText}`,
         status: 'answered',
-        category: 'refund',
+        category: 'refund_request',
         confidence: 'high',
         provider: 'system',
         model: 'commerce-demo-v1'
@@ -388,24 +403,25 @@ export class OrderService {
           `There is no refund record yet for order ${context.order.order_number}. ` +
           `The return is currently ${context.returnRecord.status}, so the refund may not have been issued yet.`,
         status: 'clarification_needed',
-        category: 'refund',
+        category: 'refund_request',
         confidence: 'medium',
         provider: 'system',
         model: 'commerce-demo-v1'
       };
     }
 
-    return {
-      session_id: sessionId,
+    return this.buildTicketRequiredResponse({
+      sessionId,
+      category: 'refund_request',
+      issueSummary: `Customer wants refund help for order ${context.order.order_number}.`,
       answer:
         `I do not see a refund in progress for order ${context.order.order_number}. ` +
-        'If you need help with a refund, I can help you review the return options or connect you with support.',
-      status: 'clarification_needed',
-      category: 'refund',
-      confidence: 'medium',
-      provider: 'system',
-      model: 'commerce-demo-v1'
-    };
+        'If you want refund help, I can pass this to a support teammate and include the order details.',
+      escalationReason: 'Refund requested without an active refund record',
+      priority: 'high',
+      customer,
+      context
+    });
   }
 
   private isTrackingIntent(normalized: string) {
@@ -443,6 +459,10 @@ export class OrderService {
     );
   }
 
+  private isWrongItemIntent(normalized: string) {
+    return normalized.includes('wrong item') || normalized.includes('wrong product');
+  }
+
   private isDeliveryIssueIntent(normalized: string) {
     return (
       normalized.includes('did not receive') ||
@@ -456,23 +476,71 @@ export class OrderService {
     );
   }
 
+  private isShippingDelayIntent(normalized: string) {
+    return (
+      normalized.includes('delayed') ||
+      normalized.includes('delay') ||
+      normalized.includes('late shipment') ||
+      normalized.includes('late delivery')
+    );
+  }
+
   private isOrderHelpIntent(normalized: string) {
     return (
       this.isTrackingIntent(normalized) ||
       this.isReturnIntent(normalized) ||
       this.isRefundIntent(normalized) ||
       this.isDamageIntent(normalized) ||
-      this.isDeliveryIssueIntent(normalized)
+      this.isDeliveryIssueIntent(normalized) ||
+      this.isShippingDelayIntent(normalized)
     );
+  }
+
+  private isComplaintTone(normalized: string) {
+    return (
+      normalized.includes('late') ||
+      normalized.includes('delay') ||
+      normalized.includes('delayed') ||
+      normalized.includes('frustrat') ||
+      normalized.includes('upset') ||
+      normalized.includes('angry') ||
+      normalized.includes('unacceptable') ||
+      normalized.includes('human') ||
+      normalized.includes('support teammate') ||
+      normalized.includes('talk to support')
+    );
+  }
+
+  private isDelayedShipmentEscalationIntent(
+    normalized: string,
+    shipmentStatus: ShipmentRecord['status'] | null
+  ) {
+    return shipmentStatus === 'delayed' && this.isComplaintTone(normalized);
   }
 
   private resolveOrderCategory(normalized: string) {
     if (this.isRefundIntent(normalized)) {
-      return 'refund';
+      return 'refund_request';
     }
 
-    if (this.isReturnIntent(normalized) || this.isDamageIntent(normalized)) {
-      return 'returns';
+    if (this.isWrongItemIntent(normalized)) {
+      return 'wrong_item';
+    }
+
+    if (this.isDamageIntent(normalized)) {
+      return 'damaged_item';
+    }
+
+    if (this.isReturnIntent(normalized)) {
+      return 'return_help';
+    }
+
+    if (this.isDeliveryIssueIntent(normalized)) {
+      return 'missing_delivery';
+    }
+
+    if (this.isShippingDelayIntent(normalized)) {
+      return 'shipping_delay';
     }
 
     return 'orders';
@@ -491,14 +559,36 @@ export class OrderService {
       return 'I can help look into that delivery issue. Please share your order number or the email used at checkout.';
     }
 
+    if (this.isShippingDelayIntent(normalized)) {
+      return 'I can look into that shipment delay. Please share your order number or the email used at checkout.';
+    }
+
     return 'I can help track that order. Please share your order number or the email used at checkout.';
   }
 
   private buildDeliveryIssueResponse(
     sessionId: string,
     context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null },
-    normalizedMessage: string
+    normalizedMessage: string,
+    customer?: CustomerInfo
   ): ChatResponsePayload {
+    if (this.isDelayedShipmentEscalationIntent(normalizedMessage, context.shipment?.status ?? null)) {
+      return this.buildTicketRequiredResponse({
+        sessionId,
+        category: 'shipping_delay',
+        issueSummary:
+          `Customer needs help with delayed shipment ${context.order.order_number}. ` +
+          `${context.shipment?.latest_update ?? 'Delay reported by carrier.'}`,
+        answer:
+          `I’m sorry this shipment is delayed. Order ${context.order.order_number} is still with ${context.shipment?.carrier}, ` +
+          'and I can pass this to a support teammate for follow-up if you want an update beyond the carrier scan.',
+        escalationReason: 'Delayed shipment with customer complaint',
+        priority: 'medium',
+        customer,
+        context
+      });
+    }
+
     if (this.isDeliveryIssueIntent(normalizedMessage)) {
       if (context.shipment?.status !== 'delivered') {
         return {
@@ -514,18 +604,20 @@ export class OrderService {
         };
       }
 
-      return {
-        session_id: sessionId,
+      return this.buildTicketRequiredResponse({
+        sessionId,
+        category: 'missing_delivery',
+        issueSummary:
+          `Customer reports order ${context.order.order_number} as delivered but still missing.`,
         answer:
           `I’m sorry that order ${context.order.order_number} shows as delivered but is still missing. ` +
           'Please check the delivery spot, front desk, or anyone else at the address who may have accepted it. ' +
-          'If it is still missing, I can help you create a support request so the team can review it without making you repeat the details.',
-        status: 'clarification_needed',
-        category: 'orders',
-        confidence: 'medium',
-        provider: 'system',
-        model: 'commerce-demo-v1'
-      };
+          'If it is still missing, I can pass everything to a support teammate so you do not need to repeat yourself.',
+        escalationReason: 'Delivered order reported missing',
+        priority: 'high',
+        customer,
+        context
+      });
     }
 
     if (!context.shipment?.delivered_at) {
@@ -542,18 +634,88 @@ export class OrderService {
       };
     }
 
-    return {
-      session_id: sessionId,
+    return this.buildTicketRequiredResponse({
+      sessionId,
+      category: this.isWrongItemIntent(normalizedMessage) ? 'wrong_item' : 'damaged_item',
+      issueSummary:
+        `Customer reports a ${this.isWrongItemIntent(normalizedMessage) ? 'wrong item' : 'damaged item'} for order ${context.order.order_number}.`,
       answer:
         `I’m sorry about that issue with order ${context.order.order_number}. ` +
-        'Because the item arrived damaged or incorrect, this is a good case for a return or support review. ' +
-        'If you want, I can help you start the return path or pass this to support so you do not need to repeat yourself.',
-      status: 'clarification_needed',
-      category: 'returns',
+        'Because the item arrived damaged or incorrect, I can send this to a support teammate for review and keep your order details attached.',
+      escalationReason: this.isWrongItemIntent(normalizedMessage)
+        ? 'Customer received the wrong item'
+        : 'Customer reported a damaged item',
+      priority: 'high',
+      customer,
+      context
+    });
+  }
+
+  private buildTicketRequiredResponse(input: {
+    sessionId: string;
+    category: string;
+    issueSummary: string;
+    answer: string;
+    escalationReason: string;
+    priority: PriorityLevel;
+    customer?: CustomerInfo;
+    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null };
+  }): ChatResponsePayload {
+    const suggestedCustomer: Partial<CustomerInfo> = {
+      email: input.context.customer?.email ?? undefined,
+      issue_summary: input.issueSummary
+    };
+    const missingCustomerFields = this.getMissingCustomerFields(input.customer, suggestedCustomer);
+
+    return {
+      session_id: input.sessionId,
+      answer: input.answer,
+      status: 'ticket_required',
+      category: input.category,
       confidence: 'medium',
       provider: 'system',
-      model: 'commerce-demo-v1'
+      model: 'commerce-demo-v1',
+      requires_customer_details: missingCustomerFields.length > 0,
+      missing_customer_fields: missingCustomerFields,
+      suggested_customer: suggestedCustomer,
+      ticket_context: this.buildTicketContext(input.context, input.escalationReason, input.priority)
     };
+  }
+
+  private buildTicketContext(
+    context: OrderTrackingContext & { returnRecord: ReturnRecord | null; refundRecord: RefundRecord | null },
+    escalationReason: string,
+    priority: PriorityLevel
+  ): TicketContextPayload {
+    const summaryParts = [
+      `Order ${context.order.order_number}`,
+      `status ${context.order.status}`,
+      context.shipment
+        ? `${this.formatShipmentStatus(context.shipment.status)} with ${context.shipment.carrier}`
+        : 'not yet shipped',
+      context.shipment?.latest_update ?? null
+    ].filter(Boolean);
+
+    return {
+      order_number: context.order.order_number,
+      checkout_email: context.customer?.email ?? null,
+      shipment_status: context.shipment?.status ?? 'not_shipped',
+      escalation_reason: escalationReason,
+      priority,
+      timeline_summary: summaryParts.join(' · ')
+    };
+  }
+
+  private getMissingCustomerFields(
+    customer?: CustomerInfo,
+    suggestedCustomer?: Partial<CustomerInfo>
+  ): Array<keyof CustomerInfo> {
+    const fields: Array<keyof CustomerInfo> = ['name', 'email', 'issue_summary'];
+
+    return fields.filter((field) => {
+      const value = customer?.[field] ?? suggestedCustomer?.[field];
+      return !value || !value.trim();
+    });
   }
 
   private extractOrderNumber(message: string) {

@@ -71,7 +71,41 @@ export class ChatService {
       });
 
       if (orderTrackingResponse) {
-        await this.persistAssistantResponse(orderTrackingResponse, customer);
+        const mergedCustomer = this.mergeCustomer(customer, orderTrackingResponse.suggested_customer);
+
+        if (
+          orderTrackingResponse.status === 'ticket_required' &&
+          (orderTrackingResponse.missing_customer_fields?.length ?? 0) === 0
+        ) {
+          const ticket = await this.ticketService.createTicket({
+            session_id: request.session_id,
+            customer: mergedCustomer as Required<CustomerInfo>,
+            issue_category: orderTrackingResponse.category,
+            ticket_context: orderTrackingResponse.ticket_context,
+            provider_used: orderTrackingResponse.provider,
+            model_used: orderTrackingResponse.model
+          });
+
+          const ticketCreatedResponse: ChatResponsePayload = {
+            session_id: request.session_id,
+            answer: `I have passed this to support. Ticket ${ticket.id.slice(
+              0,
+              8
+            )} is now open, and our team will follow up at ${ticket.email}.`,
+            status: 'ticket_created',
+            category: orderTrackingResponse.category,
+            confidence: 'high',
+            provider: orderTrackingResponse.provider,
+            model: orderTrackingResponse.model,
+            ticket_id: ticket.id,
+            ticket_context: orderTrackingResponse.ticket_context
+          };
+
+          await this.persistAssistantResponse(ticketCreatedResponse, mergedCustomer);
+          return ticketCreatedResponse;
+        }
+
+        await this.persistAssistantResponse(orderTrackingResponse, mergedCustomer);
         return orderTrackingResponse;
       }
 
@@ -376,6 +410,17 @@ ${context.summary || 'No matching knowledge base entries were found.'}
       name: customer?.name?.trim(),
       email: customer?.email?.trim(),
       issue_summary: customer?.issue_summary?.trim()
+    };
+  }
+
+  private mergeCustomer(
+    customer: CustomerInfo,
+    suggestedCustomer?: Partial<CustomerInfo>
+  ): CustomerInfo {
+    return {
+      name: customer.name ?? suggestedCustomer?.name,
+      email: customer.email ?? suggestedCustomer?.email,
+      issue_summary: customer.issue_summary ?? suggestedCustomer?.issue_summary
     };
   }
 

@@ -17,6 +17,7 @@ import type {
   ReturnRecord,
   ShipmentRecord,
   StoredMessage,
+  TicketContextPayload,
   SupportTicket
 } from '../common/types/app.types';
 
@@ -45,6 +46,7 @@ interface TicketInsertInput {
   email: string;
   issue_summary: string;
   issue_category: string;
+  ticket_context?: TicketContextPayload;
   provider_used?: string | null;
   model_used?: string | null;
 }
@@ -453,6 +455,12 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        order_number: input.ticket_context?.order_number ?? null,
+        checkout_email: input.ticket_context?.checkout_email ?? null,
+        shipment_status: input.ticket_context?.shipment_status ?? null,
+        escalation_reason: input.ticket_context?.escalation_reason ?? null,
+        priority: input.ticket_context?.priority ?? null,
+        timeline_summary: input.ticket_context?.timeline_summary ?? null,
         provider_used: input.provider_used ?? null,
         model_used: input.model_used ?? null,
         created_at: new Date().toISOString()
@@ -471,6 +479,12 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        order_number: input.ticket_context?.order_number ?? null,
+        checkout_email: input.ticket_context?.checkout_email ?? null,
+        shipment_status: input.ticket_context?.shipment_status ?? null,
+        escalation_reason: input.ticket_context?.escalation_reason ?? null,
+        priority: input.ticket_context?.priority ?? null,
+        timeline_summary: input.ticket_context?.timeline_summary ?? null,
         provider_used: input.provider_used ?? null,
         model_used: input.model_used ?? null
       })

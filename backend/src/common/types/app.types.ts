@@ -7,11 +7,21 @@ export type ConversationStatus =
 
 export type MessageRole = 'user' | 'assistant';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type PriorityLevel = 'high' | 'medium' | 'low';
 
 export interface CustomerInfo {
   name?: string;
   email?: string;
   issue_summary?: string;
+}
+
+export interface TicketContextPayload {
+  order_number?: string | null;
+  checkout_email?: string | null;
+  shipment_status?: ShipmentRecord['status'] | 'not_shipped' | null;
+  escalation_reason?: string | null;
+  priority?: PriorityLevel | null;
+  timeline_summary?: string | null;
 }
 
 export interface FaqArticle {
@@ -165,6 +175,12 @@ export interface SupportTicket {
   issue_summary: string;
   issue_category: string;
   status: 'open' | 'in_progress' | 'resolved';
+  order_number?: string | null;
+  checkout_email?: string | null;
+  shipment_status?: ShipmentRecord['status'] | 'not_shipped' | null;
+  escalation_reason?: string | null;
+  priority?: PriorityLevel | null;
+  timeline_summary?: string | null;
   provider_used?: string | null;
   model_used?: string | null;
   created_at: string;
@@ -203,12 +219,15 @@ export interface ChatResponsePayload {
   ticket_id?: string;
   requires_customer_details?: boolean;
   missing_customer_fields?: Array<keyof CustomerInfo>;
+  suggested_customer?: Partial<CustomerInfo>;
+  ticket_context?: TicketContextPayload;
 }
 
 export interface SupportTicketRequest {
   session_id: string;
   customer: Required<CustomerInfo>;
   issue_category: string;
+  ticket_context?: TicketContextPayload;
 }
 
 export interface SupportTicketResponsePayload {

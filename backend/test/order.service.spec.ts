@@ -199,7 +199,7 @@ describe('OrderService', () => {
     });
 
     expect(response?.status).toBe('clarification_needed');
-    expect(response?.category).toBe('returns');
+    expect(response?.category).toBe('return_help');
     expect(response?.answer).toContain('share your order number or the email used at checkout');
   });
 
@@ -210,7 +210,7 @@ describe('OrderService', () => {
     });
 
     expect(response?.status).toBe('answered');
-    expect(response?.category).toBe('returns');
+    expect(response?.category).toBe('return_help');
     expect(response?.answer).toContain('appears eligible for a return');
   });
 
@@ -220,7 +220,9 @@ describe('OrderService', () => {
       session_id: 'session-5'
     });
 
-    expect(response?.status).toBe('clarification_needed');
+    expect(response?.status).toBe('ticket_required');
+    expect(response?.category).toBe('return_help');
+    expect(response?.ticket_context?.order_number).toBe('ORD-1005');
     expect(response?.answer).toContain('outside the standard return window');
   });
 
@@ -231,7 +233,7 @@ describe('OrderService', () => {
     });
 
     expect(response?.status).toBe('answered');
-    expect(response?.category).toBe('refund');
+    expect(response?.category).toBe('refund_request');
     expect(response?.answer).toContain('currently processed');
   });
 
@@ -241,7 +243,21 @@ describe('OrderService', () => {
       session_id: 'session-7'
     });
 
-    expect(response?.status).toBe('clarification_needed');
+    expect(response?.status).toBe('ticket_required');
+    expect(response?.category).toBe('missing_delivery');
+    expect(response?.suggested_customer?.email).toBe('hanna.bekele@example.com');
     expect(response?.answer).toContain('shows as delivered but is still missing');
+  });
+
+  it('escalates damaged-item issues with ticket context', async () => {
+    const response = await service.handleTrackingIntent({
+      message: 'My order arrived damaged. ORD-1006',
+      session_id: 'session-8'
+    });
+
+    expect(response?.status).toBe('ticket_required');
+    expect(response?.category).toBe('damaged_item');
+    expect(response?.ticket_context?.order_number).toBe('ORD-1006');
+    expect(response?.ticket_context?.priority).toBe('high');
   });
 });
