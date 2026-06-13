@@ -20,6 +20,8 @@ This project is designed to show the kind of practical engineering work a real p
 - Knowledge base and product catalog grounding
 - Conversation and message storage
 - Support ticket creation when escalation is required
+- Admin sign-in with Supabase Auth and backend-verified support access
+- Admin action audit logging for ticket updates
 - Simple admin dashboard with conversation and ticket summaries
 - Input validation, health endpoint, and environment-based configuration
 - Sample FAQ and product data under [`data/`](data)
@@ -36,9 +38,10 @@ This project is designed to show the kind of practical engineering work a real p
 
 ### Frontend
 
-- [`frontend/src/App.tsx`](frontend/src/App.tsx) switches between the customer chat and admin dashboard views.
+- [`frontend/src/App.tsx`](frontend/src/App.tsx) serves the customer chat at `/` and protects the admin workspace at `/admin`.
 - [`frontend/src/components/ChatPanel.tsx`](frontend/src/components/ChatPanel.tsx) manages chat state, loading, errors, and customer detail collection.
 - [`frontend/src/components/DashboardPanel.tsx`](frontend/src/components/DashboardPanel.tsx) shows operational metrics and recent support activity.
+- [`frontend/src/components/AdminAuthPanel.tsx`](frontend/src/components/AdminAuthPanel.tsx) handles support-team sign in and local account creation for approved emails.
 
 ### Backend
 
@@ -49,6 +52,7 @@ This project is designed to show the kind of practical engineering work a real p
 - [`backend/src/ticket`](backend/src/ticket) validates customer details and creates support tickets.
 - [`backend/src/supabase`](backend/src/supabase) abstracts persistence with Supabase plus an in-memory fallback for local demo mode.
 - [`backend/src/admin`](backend/src/admin) exposes the admin dashboard summary endpoint.
+- [`backend/src/auth`](backend/src/auth) verifies Supabase access tokens and restricts admin routes to approved support accounts.
 - [`backend/src/health`](backend/src/health) provides service health and runtime mode visibility.
 
 ### AI provider architecture
@@ -81,6 +85,7 @@ Run the SQL in [`database/schema.sql`](database/schema.sql) inside Supabase SQL 
 - `conversations`
 - `messages`
 - `support_tickets`
+- `support_admin_emails`
 
 ## Local Supabase setup
 
@@ -100,6 +105,7 @@ The local stack uses these ports to avoid conflicts with other Supabase projects
 Schema and sample FAQ/product data are applied automatically from:
 
 - [`supabase/migrations/20250608121500_init_schema.sql`](supabase/migrations/20250608121500_init_schema.sql)
+- [`supabase/migrations/20260613160000_add_admin_auth_and_rls.sql`](supabase/migrations/20260613160000_add_admin_auth_and_rls.sql)
 - [`supabase/seed.sql`](supabase/seed.sql)
 
 ## Sample data and seeding
@@ -134,6 +140,15 @@ Frontend:
 
 ```bash
 cp frontend/.env.example frontend/.env
+```
+
+Set:
+
+```bash
+VITE_API_BASE_URL=http://localhost:3000/api
+VITE_SUPABASE_URL=http://127.0.0.1:55321
+VITE_SUPABASE_ANON_KEY=your_publishable_key
+VITE_ADMIN_ALLOW_SIGNUP=false
 ```
 
 Backend:
@@ -207,13 +222,50 @@ AI_PROVIDER=mock
 5. If the request needs a human or refund review, the bot asks for `name`, `email`, and `issue summary`.
 6. The customer fills the escalation form and clicks `Create support ticket`.
 7. A support ticket is created with status `open`.
-8. Switch to the admin dashboard view to inspect conversations, open tickets, issue categories, and failures.
+8. Open `/admin`, sign in with an approved support email, and inspect conversations and tickets.
+
+## Admin access
+
+The customer experience stays public at `/`. The support workspace is protected at `/admin`.
+
+The local Supabase seed includes these approved support emails:
+
+- `support@shopassist.local`
+- `hana@shopassist.local`
+- `samuel@shopassist.local`
+- `meklit@shopassist.local`
+
+For a production-like local setup, open sign-up is disabled by default.
+
+To provision the first admin locally:
+
+1. Add or keep the email in `support_admin_emails`
+2. Create the auth user in Supabase Studio under `Authentication -> Users`
+3. Sign in on `/admin`
+
+If you explicitly want the older local self-sign-up flow for testing, set:
+
+```bash
+VITE_ADMIN_ALLOW_SIGNUP=true
+```
+
+and temporarily re-enable signups in [`supabase/config.toml`](supabase/config.toml).
+
+Protection happens in two places:
+
+- Supabase Auth verifies the session
+- backend guards verify the email against `support_admin_emails`
+
+RLS is enabled for the application tables, using `public.is_support_admin()` for authenticated admin access.
+
+Customer-facing endpoints also include basic request rate limiting to reduce spam and abusive traffic.
 
 ## API summary
 
 - `POST /api/chat`
 - `POST /api/tickets`
 - `GET /api/health`
+- `GET /api/admin/session`
 - `GET /api/admin/dashboard`
 - `GET /api/conversations/recent`
 - `GET /api/conversations/:sessionId/messages`
@@ -242,7 +294,6 @@ This project demonstrates:
 
 ## Future improvements
 
-- Supabase Auth for admin login
 - RLS policies for tenant and customer isolation
 - pgvector / RAG search over larger support knowledge bases
 - Slack or email notifications for new tickets
@@ -255,6 +306,4 @@ This project demonstrates:
 
 ## Notes for MVP scope
 
-- Admin auth is intentionally omitted for the first version.
-- Supabase Auth and Row Level Security are the recommended next steps before a production deployment.
 - The in-memory fallback is for local demo convenience; persistent environments should use Supabase.
