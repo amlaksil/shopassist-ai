@@ -195,15 +195,6 @@ export function ChatPanel() {
             care, we can connect you with a support teammate.
           </p>
         </div>
-
-        <aside className="customer-page__hero-panel" aria-label="Support promise">
-          <span className="customer-page__hero-tag">Calm, clear support</span>
-          <h2>Start here and reach a person if you need one.</h2>
-          <p>
-            We keep your conversation together so a support teammate can step in without making
-            you start over.
-          </p>
-        </aside>
       </header>
 
       <section className="customer-page__notice" aria-label="Support reassurance">
