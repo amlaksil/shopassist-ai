@@ -1,4 +1,5 @@
 import type {
+  AdminSession,
   ChatResponse,
   ConversationHistoryMessage,
   ConversationSummary,
@@ -9,6 +10,12 @@ import type {
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
+
+function withAdminHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`
+  };
+}
 
 interface SendChatPayload {
   message: string;
@@ -39,22 +46,37 @@ export async function sendChatMessage(payload: SendChatPayload): Promise<ChatRes
   return handleJsonResponse<ChatResponse>(response, 'Unable to send message');
 }
 
-export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch(`${API_BASE_URL}/admin/dashboard`);
+export async function fetchAdminSession(token: string): Promise<AdminSession> {
+  const response = await fetch(`${API_BASE_URL}/admin/session`, {
+    headers: withAdminHeaders(token)
+  });
+
+  return handleJsonResponse<AdminSession>(response, 'Unable to verify admin access');
+}
+
+export async function fetchDashboardStats(token: string): Promise<DashboardStats> {
+  const response = await fetch(`${API_BASE_URL}/admin/dashboard`, {
+    headers: withAdminHeaders(token)
+  });
 
   return handleJsonResponse<DashboardStats>(response, 'Unable to load dashboard');
 }
 
-export async function fetchRecentConversations(): Promise<ConversationSummary[]> {
-  const response = await fetch(`${API_BASE_URL}/conversations/recent`);
+export async function fetchRecentConversations(token: string): Promise<ConversationSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/conversations/recent`, {
+    headers: withAdminHeaders(token)
+  });
 
   return handleJsonResponse<ConversationSummary[]>(response, 'Unable to load conversations');
 }
 
 export async function fetchConversationMessages(
-  sessionId: string
+  sessionId: string,
+  token: string
 ): Promise<ConversationHistoryMessage[]> {
-  const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/messages`);
+  const response = await fetch(`${API_BASE_URL}/conversations/${sessionId}/messages`, {
+    headers: withAdminHeaders(token)
+  });
 
   return handleJsonResponse<ConversationHistoryMessage[]>(
     response,
@@ -76,13 +98,15 @@ export async function createSupportTicket(payload: CreateTicketPayload): Promise
 
 export async function updateSupportTicket(payload: {
   id: string;
+  token: string;
   status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
   assignee?: string;
 }): Promise<SupportTicket> {
   const response = await fetch(`${API_BASE_URL}/tickets/${payload.id}`, {
     method: 'PATCH',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...withAdminHeaders(payload.token)
     },
     body: JSON.stringify({
       status: payload.status,

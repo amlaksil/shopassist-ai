@@ -47,6 +47,7 @@ const emptyStats: DashboardStats = {
 
 interface DashboardPanelProps {
   activeSection: WorkspaceSection;
+  authToken: string;
   searchQuery: string;
   viewFilter: 'all' | 'waiting' | 'resolved';
   onNavigate: (section: WorkspaceSection, filter?: 'all' | 'waiting' | 'resolved') => void;
@@ -124,6 +125,7 @@ function buildTicketStageCopy(ticket: SupportTicket) {
 
 export function DashboardPanel({
   activeSection,
+  authToken,
   searchQuery,
   viewFilter,
   onNavigate
@@ -139,7 +141,7 @@ export function DashboardPanel({
 
   useEffect(() => {
     void loadDashboard();
-  }, []);
+  }, [authToken]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -227,7 +229,7 @@ export function DashboardPanel({
     setPreviewLoading(true);
 
     try {
-      const response = await fetchConversationMessages(conversation.session_id);
+      const response = await fetchConversationMessages(conversation.session_id, authToken);
       setConversationMessages(response);
       setError(null);
     } catch (requestError) {
@@ -255,8 +257,8 @@ export function DashboardPanel({
       }
 
       const [dashboardResponse, recentConversationResponse] = await Promise.all([
-        fetchDashboardStats(),
-        fetchRecentConversations()
+        fetchDashboardStats(authToken),
+        fetchRecentConversations(authToken)
       ]);
 
       const mergedConversations =
@@ -290,6 +292,7 @@ export function DashboardPanel({
       setTicketActionLoading(true);
       const updated = await updateSupportTicket({
         id: selectedTicket.id,
+        token: authToken,
         status: action.status,
         assignee: action.assignee
       });

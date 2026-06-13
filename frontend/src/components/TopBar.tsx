@@ -1,4 +1,4 @@
-import type { NavigationItem } from '../types';
+import type { AdminSession, NavigationItem } from '../types';
 
 interface TopBarProps {
   activeItem: NavigationItem;
@@ -6,15 +6,14 @@ interface TopBarProps {
   searchPlaceholder: string;
   onSearchChange: (value: string) => void;
   onExperienceChange: () => void;
+  onSignOut: () => void;
+  adminUser: AdminSession;
 }
 
-const subtitles: Record<string, string> = {
+const subtitles: Record<NavigationItem['label'], string> = {
   Dashboard: 'A simple overview of customer conversations and open work.',
   Conversations: 'Review recent customer messages and follow up where needed.',
-  Tickets: 'Track open requests and keep handoffs moving.',
-  'Help Center': 'Keep common answers and support topics easy to find.',
-  Reports: 'See what customers need help with most often.',
-  Settings: 'Manage the support team’s working preferences.'
+  Tickets: 'Track open requests and keep handoffs moving.'
 };
 
 export function TopBar({
@@ -22,7 +21,9 @@ export function TopBar({
   searchQuery,
   searchPlaceholder,
   onSearchChange,
-  onExperienceChange
+  onExperienceChange,
+  onSignOut,
+  adminUser
 }: TopBarProps) {
   return (
     <header className="topbar">
@@ -53,10 +54,13 @@ export function TopBar({
             ST
           </span>
           <span className="topbar__user-copy">
-            <strong>Support team</strong>
-            <small>Ready to follow up</small>
+            <strong>{adminUser.display_name}</strong>
+            <small>{adminUser.email}</small>
           </span>
         </div>
+        <button className="secondary-button" onClick={onSignOut} type="button">
+          Sign out
+        </button>
       </div>
     </header>
   );
