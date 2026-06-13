@@ -6,7 +6,8 @@ describe('TicketService', () => {
   const dataStoreService = {
     createSupportTicket: jest.fn(),
     getLatestProviderMetadata: jest.fn(),
-    listOpenTickets: jest.fn()
+    listOpenTickets: jest.fn(),
+    updateSupportTicket: jest.fn()
   };
   const conversationService = {
     touchConversation: jest.fn(),
@@ -61,5 +62,41 @@ describe('TicketService', () => {
     expect(response.ticket_id).toBe('ticket_12345678');
     expect(conversationService.touchConversation).toHaveBeenCalledTimes(1);
     expect(conversationService.recordMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates a ticket status and assignee', async () => {
+    dataStoreService.updateSupportTicket.mockResolvedValue({
+      id: 'ticket_12345678',
+      session_id: 'session_1',
+      status: 'in_progress',
+      assignee: 'Order desk',
+      provider_used: 'gemini',
+      name: 'Jamie',
+      email: 'jamie@example.com',
+      issue_category: 'shipping_delay'
+    });
+    conversationService.touchConversation.mockResolvedValue({});
+
+    const response = await service.updateTicket({
+      id: 'ticket_12345678',
+      status: 'in_progress',
+      assignee: 'Order desk'
+    });
+
+    expect(response.status).toBe('in_progress');
+    expect(response.assignee).toBe('Order desk');
+    expect(dataStoreService.updateSupportTicket).toHaveBeenCalledWith({
+      id: 'ticket_12345678',
+      status: 'in_progress',
+      assignee: 'Order desk'
+    });
+    expect(conversationService.touchConversation).toHaveBeenCalledWith({
+      session_id: 'session_1',
+      status: 'in_progress',
+      provider_used: 'gemini',
+      customer_name: 'Jamie',
+      customer_email: 'jamie@example.com',
+      issue_category: 'shipping_delay'
+    });
   });
 });

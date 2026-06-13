@@ -3,6 +3,10 @@ export type ConversationStatus =
   | 'clarification_needed'
   | 'ticket_required'
   | 'ticket_created'
+  | 'open'
+  | 'in_progress'
+  | 'waiting_on_customer'
+  | 'resolved'
   | 'error';
 
 export type MessageRole = 'user' | 'assistant';
@@ -150,6 +154,7 @@ export interface ConversationRecord {
   created_at: string;
   updated_at: string;
   latest_message: string;
+  assignee?: string | null;
   customer_name?: string | null;
   customer_email?: string | null;
   issue_category?: string | null;
@@ -174,7 +179,8 @@ export interface SupportTicket {
   email: string;
   issue_summary: string;
   issue_category: string;
-  status: 'open' | 'in_progress' | 'resolved';
+  status: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
+  assignee?: string | null;
   order_number?: string | null;
   checkout_email?: string | null;
   shipment_status?: ShipmentRecord['status'] | 'not_shipped' | null;
@@ -184,6 +190,7 @@ export interface SupportTicket {
   provider_used?: string | null;
   model_used?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface KnowledgeContext {

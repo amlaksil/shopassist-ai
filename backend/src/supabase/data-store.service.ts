@@ -51,6 +51,12 @@ interface TicketInsertInput {
   model_used?: string | null;
 }
 
+interface TicketUpdateInput {
+  id: string;
+  status?: SupportTicket['status'];
+  assignee?: string | null;
+}
+
 interface ProviderMetadata {
   provider: string;
   model: string;
@@ -392,9 +398,11 @@ export class DataStoreService {
 
   async listRecentConversations(limit = 10): Promise<ConversationRecord[]> {
     if (!this.supabase) {
-      return [...this.localConversations.values()]
+      const conversations = [...this.localConversations.values()]
         .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
         .slice(0, limit);
+
+      return this.attachTicketAssignments(conversations, this.localTickets);
     }
 
     const { data, error } = await this.supabase
@@ -407,7 +415,10 @@ export class DataStoreService {
       throw new Error(`Unable to list conversations: ${error.message}`);
     }
 
-    return (data ?? []) as ConversationRecord[];
+    return this.attachTicketAssignments(
+      (data ?? []) as ConversationRecord[],
+      await this.getTicketsForSessions((data ?? []).map((conversation) => conversation.session_id))
+    );
   }
 
   async getLatestProviderMetadata(sessionId: string): Promise<ProviderMetadata> {
@@ -455,6 +466,7 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        assignee: 'Unassigned',
         order_number: input.ticket_context?.order_number ?? null,
         checkout_email: input.ticket_context?.checkout_email ?? null,
         shipment_status: input.ticket_context?.shipment_status ?? null,
@@ -463,7 +475,8 @@ export class DataStoreService {
         timeline_summary: input.ticket_context?.timeline_summary ?? null,
         provider_used: input.provider_used ?? null,
         model_used: input.model_used ?? null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       this.localTickets.unshift(ticket);
@@ -479,6 +492,7 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        assignee: 'Unassigned',
         order_number: input.ticket_context?.order_number ?? null,
         checkout_email: input.ticket_context?.checkout_email ?? null,
         shipment_status: input.ticket_context?.shipment_status ?? null,
@@ -500,14 +514,19 @@ export class DataStoreService {
 
   async listOpenTickets(limit = 10): Promise<SupportTicket[]> {
     if (!this.supabase) {
-      return this.localTickets.filter((ticket) => ticket.status === 'open').slice(0, limit);
+      return this.localTickets
+        .filter((ticket) => ticket.status !== 'resolved')
+        .sort((left, right) =>
+          (right.updated_at ?? right.created_at).localeCompare(left.updated_at ?? left.created_at)
+        )
+        .slice(0, limit);
     }
 
     const { data, error } = await this.supabase
       .from('support_tickets')
       .select('*')
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
+      .neq('status', 'resolved')
+      .order('updated_at', { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -515,6 +534,53 @@ export class DataStoreService {
     }
 
     return (data ?? []) as SupportTicket[];
+  }
+
+  async updateSupportTicket(input: TicketUpdateInput): Promise<SupportTicket> {
+    if (!this.supabase) {
+      const existingIndex = this.localTickets.findIndex((ticket) => ticket.id === input.id);
+
+      if (existingIndex === -1) {
+        throw new Error('Unable to update ticket: not found');
+      }
+
+      const existing = this.localTickets[existingIndex];
+      const updated: SupportTicket = {
+        ...existing,
+        status: input.status ?? existing.status,
+        assignee:
+          input.assignee === undefined ? (existing.assignee ?? 'Unassigned') : input.assignee,
+        updated_at: new Date().toISOString()
+      };
+
+      this.localTickets[existingIndex] = updated;
+      return updated;
+    }
+
+    const updatePayload: Record<string, string | null> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (input.status !== undefined) {
+      updatePayload.status = input.status;
+    }
+
+    if (input.assignee !== undefined) {
+      updatePayload.assignee = input.assignee;
+    }
+
+    const { data, error } = await this.supabase
+      .from('support_tickets')
+      .update(updatePayload)
+      .eq('id', input.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Unable to update ticket: ${error.message}`);
+    }
+
+    return data as SupportTicket;
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
@@ -541,14 +607,16 @@ export class DataStoreService {
 
     const unresolvedConversations = allConversations.filter(
       (conversation) =>
-        conversation.status === 'ticket_required' || conversation.status === 'clarification_needed'
+        conversation.status === 'clarification_needed' ||
+        conversation.status === 'ticket_required' ||
+        conversation.status === 'waiting_on_customer'
     );
     const botFailures = allConversations.filter((conversation) => conversation.status === 'error');
 
     return {
       totals: {
         conversations: allConversations.length,
-        open_tickets: allTickets.filter((ticket) => ticket.status === 'open').length,
+        open_tickets: allTickets.filter((ticket) => ticket.status !== 'resolved').length,
         unresolved_conversations: unresolvedConversations.length,
         bot_failures: botFailures.length
       },
@@ -605,5 +673,45 @@ export class DataStoreService {
       error.code === '23505' &&
       error.message.includes('conversations_session_id_key')
     );
+  }
+
+  private attachTicketAssignments(
+    conversations: ConversationRecord[],
+    tickets: SupportTicket[]
+  ): ConversationRecord[] {
+    const latestTicketBySession = new Map<string, SupportTicket>();
+
+    for (const ticket of tickets) {
+      const existing = latestTicketBySession.get(ticket.session_id);
+      const currentUpdated = ticket.updated_at ?? ticket.created_at;
+      const existingUpdated = existing ? existing.updated_at ?? existing.created_at : '';
+
+      if (!existing || currentUpdated > existingUpdated) {
+        latestTicketBySession.set(ticket.session_id, ticket);
+      }
+    }
+
+    return conversations.map((conversation) => ({
+      ...conversation,
+      assignee: latestTicketBySession.get(conversation.session_id)?.assignee ?? null
+    }));
+  }
+
+  private async getTicketsForSessions(sessionIds: string[]): Promise<SupportTicket[]> {
+    if (!this.supabase || sessionIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from('support_tickets')
+      .select('*')
+      .in('session_id', sessionIds);
+
+    if (error) {
+      this.logger.warn(`Unable to load linked ticket owners: ${error.message}`);
+      return [];
+    }
+
+    return (data ?? []) as SupportTicket[];
   }
 }

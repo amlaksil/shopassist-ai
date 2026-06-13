@@ -286,7 +286,7 @@ export class ChatService {
   ) {
     await this.conversationService.touchConversation({
       session_id: response.session_id,
-      status: response.status,
+      status: this.mapResponseStatusForConversation(response.status),
       provider_used: response.provider,
       latest_message: response.answer,
       customer_name: customer.name ?? null,
@@ -302,6 +302,14 @@ export class ChatService {
       model_used: response.model,
       status: response.status
     });
+  }
+
+  private mapResponseStatusForConversation(status: ChatResponsePayload['status']) {
+    if (status === 'ticket_created') {
+      return 'open' as const;
+    }
+
+    return status;
   }
 
   private buildProviderFailureAnswer(

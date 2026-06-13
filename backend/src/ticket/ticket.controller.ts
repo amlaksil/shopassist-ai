@@ -4,11 +4,14 @@ import {
   Controller,
   Get,
   InternalServerErrorException,
+  Param,
+  Patch,
   Post
 } from '@nestjs/common';
 
 import { TicketService } from './ticket.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
+import { UpdateTicketDto } from './dto/update-ticket.dto';
 
 @Controller('tickets')
 export class TicketController {
@@ -30,6 +33,25 @@ export class TicketController {
 
       throw new InternalServerErrorException(
         error instanceof Error ? error.message : 'Unable to create support ticket'
+      );
+    }
+  }
+
+  @Patch(':id')
+  async updateTicket(@Param('id') id: string, @Body() body: UpdateTicketDto) {
+    try {
+      return await this.ticketService.updateTicket({
+        id,
+        status: body.status,
+        assignee: body.assignee
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Unable to update support ticket'
       );
     }
   }
