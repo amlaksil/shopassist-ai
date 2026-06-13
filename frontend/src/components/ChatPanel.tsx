@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createSupportTicket, sendChatMessage } from '../lib/api';
 import type { ChatMessage, ChatResponse, CustomerInfo } from '../types';
+import { ChatMessage as ChatMessageCard } from './ChatMessage';
+import { QuickActionButton } from './QuickActionButton';
 
 const DEFAULT_SESSION_ID = `session_${crypto.randomUUID()}`;
 
@@ -10,9 +12,32 @@ const starterMessages: ChatMessage[] = [
     id: crypto.randomUUID(),
     sender: 'assistant',
     content:
-      'Hi, I am ShopAssist AI. I can help with shipping, returns, refunds, products, and account issues.',
+      'Hi, I’m ShopAssist AI. I can help with orders, shipping, returns, refunds, and account questions. If needed, I can pass this conversation to a support teammate so you will not need to repeat yourself.',
     created_at: new Date().toISOString(),
     status: 'answered'
+  }
+];
+
+const quickActions = [
+  {
+    label: 'Track my order',
+    prompt: 'Where is my order?'
+  },
+  {
+    label: 'Start a return',
+    prompt: 'I need help starting a return.'
+  },
+  {
+    label: 'Ask about a refund',
+    prompt: 'How do refunds work?'
+  },
+  {
+    label: 'Shipping help',
+    prompt: 'I need help with shipping.'
+  },
+  {
+    label: 'Talk to support',
+    prompt: 'I need help from a support teammate.'
   }
 ];
 
@@ -26,7 +51,11 @@ function toAssistantMessage(response: ChatResponse): ChatMessage {
   };
 }
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  onOpenAdmin: () => void;
+}
+
+export function ChatPanel({ onOpenAdmin }: ChatPanelProps) {
   const [sessionId] = useState(DEFAULT_SESSION_ID);
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [input, setInput] = useState('');
@@ -57,10 +86,8 @@ export function ChatPanel() {
     });
   }, [messages, latestMeta, loading, ticketLoading]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const trimmed = input.trim();
+  async function submitMessage(content: string) {
+    const trimmed = content.trim();
     if (!trimmed || isBusy) {
       return;
     }
@@ -91,6 +118,11 @@ export function ChatPanel() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitMessage(input);
   }
 
   async function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
@@ -124,97 +156,179 @@ export function ChatPanel() {
     }
   }
 
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void submitMessage(input);
+    }
+  }
+
   return (
-    <section className="panel chat-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Customer Support Chat</p>
-          <h2>Live storefront assistant</h2>
-        </div>
-        <span className="session-chip">{sessionId.slice(0, 18)}</span>
-      </div>
-
-      <div className="chat-log" ref={chatLogRef}>
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            className={`message-bubble message-bubble--${message.sender}`}
-          >
-            <span>{message.content}</span>
-            <small>{new Date(message.created_at).toLocaleTimeString()}</small>
-          </article>
-        ))}
-
-        {isBusy ? <div className="message-bubble message-bubble--assistant">Processing...</div> : null}
-      </div>
-
-      {latestMeta?.requires_customer_details ? (
-        <form className="customer-card" onSubmit={handleCreateTicket}>
-          <h3>Support ticket details</h3>
+    <main className="customer-page">
+      <header className="customer-page__hero">
+        <div className="customer-page__hero-copy">
+          <p className="customer-page__eyebrow">Customer Support</p>
+          <h1>How can we help today?</h1>
           <p>
-            Share the details below to open a support ticket. Press the button when ready.
+            Get quick help with orders, shipping, returns, and refunds. If something needs extra
+            care, we can connect you with a support teammate.
           </p>
-          {needsCustomerFields.length > 0 ? (
-            <p className="customer-card__hint">Missing: {needsCustomerFields.join(', ')}</p>
-          ) : null}
-          <div className="customer-grid">
-            <label>
-              Name
-              <input
-                value={customer.name ?? ''}
-                onChange={(event) =>
-                  setCustomer((current) => ({ ...current, name: event.target.value }))
-                }
-                placeholder="Jamie Rivera"
-              />
-            </label>
-            <label>
-              Email
-              <input
-                value={customer.email ?? ''}
-                onChange={(event) =>
-                  setCustomer((current) => ({ ...current, email: event.target.value }))
-                }
-                placeholder="jamie@example.com"
-                type="email"
-              />
-            </label>
-            <label className="customer-grid__full">
-              Issue summary
-              <textarea
-                value={customer.issue_summary ?? ''}
-                onChange={(event) =>
-                  setCustomer((current) => ({
-                    ...current,
-                    issue_summary: event.target.value
-                  }))
-                }
-                placeholder="My refund request needs manual review."
-              />
-            </label>
+        </div>
+
+        <aside className="customer-page__hero-panel" aria-label="Support promise">
+          <span className="customer-page__hero-tag">Calm, clear support</span>
+          <h2>Start here and reach a person if you need one.</h2>
+          <p>
+            We keep your conversation together so a support teammate can step in without making
+            you start over.
+          </p>
+
+          <button className="secondary-button" onClick={onOpenAdmin} type="button">
+            Support dashboard
+          </button>
+        </aside>
+      </header>
+
+      <section className="customer-page__notice" aria-label="Support reassurance">
+        If needed, your conversation can be passed to support so you do not need to repeat your
+        issue.
+      </section>
+
+      <section className="customer-chat-card">
+        <header className="customer-chat-card__header">
+          <div className="customer-chat-card__identity">
+            <span className="customer-chat-card__avatar" aria-hidden="true">
+              SA
+            </span>
+            <div>
+              <h2>ShopAssist AI</h2>
+              <p>Tell us what you need help with.</p>
+            </div>
           </div>
-          <div className="customer-actions">
-            <button disabled={!canCreateTicket || isBusy} type="submit">
-              {ticketLoading ? 'Creating ticket...' : 'Create support ticket'}
+        </header>
+
+        <div className="chat-toolbar" aria-label="Suggested customer requests">
+          {quickActions.map((action) => (
+            <QuickActionButton
+              key={action.label}
+              label={action.label}
+              onClick={() => void submitMessage(action.prompt)}
+            />
+          ))}
+        </div>
+
+        {error ? (
+          <div className="status-banner status-banner--error" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        <div aria-busy={isBusy} aria-live="polite" className="chat-log" ref={chatLogRef} role="log">
+          {messages.map((message) => (
+            <ChatMessageCard key={message.id} message={message} />
+          ))}
+
+          {isBusy ? (
+            <div className="typing-indicator" aria-live="polite">
+              <span className="typing-indicator__dots" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <div>
+                <strong>Preparing a reply</strong>
+                <p>We will keep the conversation together if a support teammate joins.</p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {latestMeta?.requires_customer_details ? (
+          <form className="customer-card" onSubmit={handleCreateTicket}>
+            <div className="customer-card__header">
+              <div>
+                <h3>Share a few details</h3>
+                <p>
+                  We can open a support request for you and include this conversation so you do not
+                  need to start over.
+                </p>
+              </div>
+            </div>
+
+            {needsCustomerFields.length > 0 ? (
+              <p className="customer-card__hint">
+                Still needed: {needsCustomerFields.map((field) => field.replace('_', ' ')).join(', ')}
+              </p>
+            ) : null}
+
+            <div className="customer-grid">
+              <label>
+                Name
+                <input
+                  onChange={(event) =>
+                    setCustomer((current) => ({ ...current, name: event.target.value }))
+                  }
+                  placeholder="Jamie Rivera"
+                  type="text"
+                  value={customer.name ?? ''}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  onChange={(event) =>
+                    setCustomer((current) => ({ ...current, email: event.target.value }))
+                  }
+                  placeholder="jamie@example.com"
+                  type="email"
+                  value={customer.email ?? ''}
+                />
+              </label>
+              <label className="customer-grid__full">
+                What do you need help with?
+                <textarea
+                  onChange={(event) =>
+                    setCustomer((current) => ({
+                      ...current,
+                      issue_summary: event.target.value
+                    }))
+                  }
+                  placeholder="My order arrived damaged and I would like help with a refund."
+                  rows={4}
+                  value={customer.issue_summary ?? ''}
+                />
+              </label>
+            </div>
+
+            <div className="customer-actions">
+              <button className="primary-button" disabled={!canCreateTicket || isBusy} type="submit">
+                {ticketLoading ? 'Sending your request...' : 'Send to support'}
+              </button>
+              <span>Your support request will include the chat so you do not need to repeat anything.</span>
+            </div>
+          </form>
+        ) : null}
+
+        <form className="chat-composer" onSubmit={handleSubmit}>
+          <label className="sr-only" htmlFor="chat-message">
+            Message
+          </label>
+          <textarea
+            id="chat-message"
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+            placeholder="Tell us what you need help with."
+            rows={4}
+            value={input}
+          />
+          <div className="chat-composer__footer">
+            <p>Press Enter to send. Use Shift + Enter for a new line.</p>
+            <button className="primary-button" disabled={isBusy || !input.trim()} type="submit">
+              {loading ? 'Sending...' : 'Send message'}
             </button>
-            <span>Press Enter in the name or email field to submit once all details are filled.</span>
           </div>
         </form>
-      ) : null}
-
-      {error ? <div className="status-banner status-banner--error">{error}</div> : null}
-
-      <form className="composer" onSubmit={handleSubmit}>
-        <textarea
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask about shipping, returns, orders, payments, or products."
-          rows={3}
-        />
-        <button disabled={isBusy || !input.trim()} type="submit">
-          {loading ? 'Sending...' : 'Send message'}
-        </button>
-      </form>
-    </section>
+      </section>
+    </main>
   );
 }

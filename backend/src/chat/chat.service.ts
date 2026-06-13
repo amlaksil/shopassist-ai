@@ -1,6 +1,10 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 
 import { AiService } from '../ai/ai.service';
+import {
+  AiProviderError,
+  type AiProviderFailureCode
+} from '../common/errors/ai-provider.error';
 import type { AiProviderMessage } from '../common/interfaces/ai-provider.interface';
 import type {
   ChatResponsePayload,
@@ -154,6 +158,19 @@ export class ChatService {
 
       return response;
     } catch (error) {
+      if (error instanceof AiProviderError) {
+        this.logger.warn(
+          `AI provider issue (${error.provider}/${error.code}): ${error.message}`
+        );
+
+        return this.handleProviderFailure({
+          sessionId: request.session_id,
+          customer,
+          message: normalizedMessage,
+          providerError: error
+        });
+      }
+
       this.logger.error('Unable to process chat request', error instanceof Error ? error.stack : '');
 
       await this.conversationService.touchConversation({
@@ -174,6 +191,114 @@ export class ChatService {
 
       throw new InternalServerErrorException('Unable to process chat request');
     }
+  }
+
+  private async handleProviderFailure(input: {
+    sessionId: string;
+    customer: CustomerInfo;
+    message: string;
+    providerError: AiProviderError;
+  }): Promise<ChatResponsePayload> {
+    const issueCategory = this.resolveCategory(input.message, 'general');
+    const missingCustomerFields = this.ticketService.getMissingCustomerFields(input.customer);
+
+    if (missingCustomerFields.length === 0) {
+      const ticket = await this.ticketService.createTicket({
+        session_id: input.sessionId,
+        customer: input.customer as Required<CustomerInfo>,
+        issue_category: issueCategory,
+        provider_used: input.providerError.provider,
+        model_used: 'unavailable'
+      });
+
+      const answer =
+        'I am having trouble connecting right now, so I have opened a support request for you. ' +
+        `Ticket ${ticket.id.slice(0, 8)} is now open, and our support team will follow up at ${ticket.email}.`;
+
+      const response: ChatResponsePayload = {
+        session_id: input.sessionId,
+        answer,
+        status: 'ticket_created',
+        category: issueCategory,
+        confidence: 'low',
+        provider: input.providerError.provider,
+        model: 'unavailable',
+        ticket_id: ticket.id
+      };
+
+      await this.conversationService.touchConversation({
+        session_id: input.sessionId,
+        status: response.status,
+        provider_used: input.providerError.provider,
+        latest_message: response.answer,
+        customer_name: input.customer.name ?? null,
+        customer_email: input.customer.email ?? null,
+        issue_category: response.category
+      });
+
+      await this.conversationService.recordMessage({
+        session_id: input.sessionId,
+        role: 'assistant',
+        content: response.answer,
+        provider_used: input.providerError.provider,
+        model_used: 'unavailable',
+        status: response.status
+      });
+
+      return response;
+    }
+
+    const response: ChatResponsePayload = {
+      session_id: input.sessionId,
+      answer: this.buildProviderFailureAnswer(input.providerError.code, missingCustomerFields),
+      status: 'ticket_required',
+      category: issueCategory,
+      confidence: 'low',
+      provider: input.providerError.provider,
+      model: 'unavailable',
+      requires_customer_details: true,
+      missing_customer_fields: missingCustomerFields
+    };
+
+    await this.conversationService.touchConversation({
+      session_id: input.sessionId,
+      status: response.status,
+      provider_used: input.providerError.provider,
+      latest_message: response.answer,
+      customer_name: input.customer.name ?? null,
+      customer_email: input.customer.email ?? null,
+      issue_category: response.category
+    });
+
+    await this.conversationService.recordMessage({
+      session_id: input.sessionId,
+      role: 'assistant',
+      content: response.answer,
+      provider_used: input.providerError.provider,
+      model_used: 'unavailable',
+      status: response.status
+    });
+
+    return response;
+  }
+
+  private buildProviderFailureAnswer(
+    code: AiProviderFailureCode,
+    missingCustomerFields: Array<keyof CustomerInfo>
+  ) {
+    const missingFieldsText = missingCustomerFields.join(', ');
+
+    if (code === 'authentication' || code === 'configuration') {
+      return (
+        'I am unable to access the assistant right now. ' +
+        `If you would like, I can still open a support request for you. Please share your ${missingFieldsText}.`
+      );
+    }
+
+    return (
+      'I am having trouble connecting right now. ' +
+      `I can still hand this to our support team. Please share your ${missingFieldsText}.`
+    );
   }
 
   private buildSystemPrompt(context: KnowledgeContext, escalationIntent: boolean) {
@@ -303,4 +428,3 @@ ${context.summary || 'No matching knowledge base entries were found.'}
     return 'medium';
   }
 }
-
