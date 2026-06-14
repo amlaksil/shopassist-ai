@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   fetchConversationMessages,
@@ -8,7 +8,6 @@ import {
 } from '../lib/api';
 import {
   buildAssignedTo,
-  buildBotFailureReason,
   derivePriorityFromConversation,
   derivePriorityFromTicket,
   formatDateTime,
@@ -139,10 +138,6 @@ export function DashboardPanel({
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [ticketActionLoading, setTicketActionLoading] = useState(false);
 
-  useEffect(() => {
-    void loadDashboard();
-  }, [authToken]);
-
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const filteredConversations = useMemo(() => {
@@ -250,7 +245,7 @@ export function DashboardPanel({
     void handleViewConversation(linkedConversation);
   }
 
-  async function loadDashboard(showLoading = true) {
+  const loadDashboard = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setLoading(true);
@@ -278,7 +273,11 @@ export function DashboardPanel({
         setLoading(false);
       }
     }
-  }
+  }, [authToken]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   async function handleTicketAction(action: {
     status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';

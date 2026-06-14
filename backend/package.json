@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node dist/src/main.js",
     "start:dev": "node --watch --require ts-node/register src/main.ts",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "test:watch": "jest --watch",

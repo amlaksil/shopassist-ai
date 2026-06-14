@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type { FaqArticle, KnowledgeContext, Product } from '../common/types/app.types';
+import type { KnowledgeContext } from '../common/types/app.types';
 import { DataStoreService } from '../supabase/data-store.service';
 
 @Injectable()
@@ -76,4 +76,3 @@ export class KnowledgeBaseService {
       .map((entry) => entry.item);
   }
 }
-
