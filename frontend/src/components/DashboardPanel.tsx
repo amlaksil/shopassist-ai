@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   fetchConversationMessages,
   fetchDashboardStats,
-  fetchRecentConversations
+  fetchRecentConversations,
+  updateSupportTicket
 } from '../lib/api';
 import {
   buildAssignedTo,
@@ -47,37 +48,9 @@ const emptyStats: DashboardStats = {
 interface DashboardPanelProps {
   activeSection: WorkspaceSection;
   searchQuery: string;
+  viewFilter: 'all' | 'waiting' | 'resolved';
+  onNavigate: (section: WorkspaceSection, filter?: 'all' | 'waiting' | 'resolved') => void;
 }
-
-const sectionCopy: Record<
-  WorkspaceSection,
-  { title: string; description: string }
-> = {
-  dashboard: {
-    title: 'Support overview',
-    description: 'See what needs attention, what is moving well, and where customers need help.'
-  },
-  conversations: {
-    title: 'Conversations',
-    description: 'Review recent customer messages and keep the next step clear.'
-  },
-  tickets: {
-    title: 'Tickets',
-    description: 'Manage open requests and make sure follow-up stays on track.'
-  },
-  help_center: {
-    title: 'Help Center',
-    description: 'Keep common topics and saved responses easy for the team to use.'
-  },
-  reports: {
-    title: 'Reports',
-    description: 'Look at common issues, open work, and recent follow-up needs.'
-  },
-  settings: {
-    title: 'Settings',
-    description: 'Organize support hours, handoff rules, and team-ready response content.'
-  }
-};
 
 interface SummaryCardData {
   label: string;
@@ -85,9 +58,76 @@ interface SummaryCardData {
   description: string;
   variant: 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
   badge: string;
+  actionLabel: string;
+  nextSection: WorkspaceSection;
+  filter: 'all' | 'waiting' | 'resolved';
 }
 
-export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelProps) {
+const assigneeOptions = [
+  'Support team',
+  'Order desk',
+  'Returns desk',
+  'Billing desk',
+  'Hana Tesfaye',
+  'Samuel Bekele',
+  'Meklit Alemu'
+] as const;
+
+function getSuggestedAssignee(ticket: SupportTicket) {
+  const category = ticket.issue_category.toLowerCase();
+
+  if (
+    category.includes('return') ||
+    category.includes('refund') ||
+    category.includes('damaged') ||
+    category.includes('wrong_item')
+  ) {
+    return 'Returns desk';
+  }
+
+  if (
+    category.includes('shipping') ||
+    category.includes('delivery') ||
+    category.includes('missing')
+  ) {
+    return 'Order desk';
+  }
+
+  return 'Support team';
+}
+
+function buildTicketStageCopy(ticket: SupportTicket) {
+  switch (ticket.status) {
+    case 'in_progress':
+      return {
+        title: 'Work is in progress',
+        description: 'A support teammate is actively handling this request.'
+      };
+    case 'waiting_on_customer':
+      return {
+        title: 'Waiting for the customer',
+        description: 'The team is waiting for a reply or the missing details needed to continue.'
+      };
+    case 'resolved':
+      return {
+        title: 'Ticket resolved',
+        description: 'This request is closed and has been removed from the active queue.'
+      };
+    case 'open':
+    default:
+      return {
+        title: 'Ready for follow-up',
+        description: 'Choose an owner, then move the ticket into active work when someone starts handling it.'
+      };
+  }
+}
+
+export function DashboardPanel({
+  activeSection,
+  searchQuery,
+  viewFilter,
+  onNavigate
+}: DashboardPanelProps) {
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,41 +135,32 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
   const [conversationMessages, setConversationMessages] = useState<ConversationHistoryMessage[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [ticketActionLoading, setTicketActionLoading] = useState(false);
 
   useEffect(() => {
-    async function loadDashboard() {
-      try {
-        setLoading(true);
-        const [dashboardResponse, recentConversationResponse] = await Promise.all([
-          fetchDashboardStats(),
-          fetchRecentConversations()
-        ]);
-
-        const mergedConversations =
-          recentConversationResponse.length > dashboardResponse.recent_conversations.length
-            ? recentConversationResponse
-            : dashboardResponse.recent_conversations;
-
-        setStats({
-          ...dashboardResponse,
-          recent_conversations: mergedConversations
-        });
-        setError(null);
-      } catch (requestError) {
-        setError(requestError instanceof Error ? requestError.message : 'Unexpected error');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     void loadDashboard();
   }, []);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  const filteredConversations = useMemo(
-    () =>
-      stats.recent_conversations.filter((conversation) => {
+  const filteredConversations = useMemo(() => {
+    const baseRows = stats.recent_conversations.filter((conversation) => {
+      if (viewFilter === 'waiting') {
+        return (
+          conversation.status === 'clarification_needed' ||
+          conversation.status === 'ticket_required' ||
+          conversation.status === 'waiting_on_customer'
+        );
+      }
+
+      if (viewFilter === 'resolved') {
+        return conversation.status === 'answered' || conversation.status === 'resolved';
+      }
+
+      return true;
+    });
+
+    return baseRows.filter((conversation) => {
         if (!normalizedQuery) {
           return true;
         }
@@ -144,9 +175,8 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
           .join(' ')
           .toLowerCase()
           .includes(normalizedQuery);
-      }),
-    [normalizedQuery, stats.recent_conversations]
-  );
+      });
+  }, [normalizedQuery, stats.recent_conversations, viewFilter]);
 
   const filteredTickets = useMemo(
     () =>
@@ -155,7 +185,16 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
           return true;
         }
 
-        return [ticket.name, ticket.email, ticket.issue_category, ticket.issue_summary, ticket.session_id]
+        return [
+          ticket.name,
+          ticket.email,
+          ticket.issue_category,
+          ticket.issue_summary,
+          ticket.session_id,
+          ticket.order_number ?? '',
+          ticket.assignee ?? '',
+          ticket.escalation_reason ?? ''
+        ]
           .join(' ')
           .toLowerCase()
           .includes(normalizedQuery);
@@ -177,8 +216,7 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
       stats.recent_conversations.filter(
         (conversation) =>
           conversation.status === 'clarification_needed' ||
-          conversation.status === 'ticket_required' ||
-          conversation.status === 'ticket_created' ||
+          conversation.status === 'waiting_on_customer' ||
           conversation.status === 'error'
       ),
     [stats.recent_conversations]
@@ -208,6 +246,61 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
       buildSyntheticConversation(ticket);
 
     void handleViewConversation(linkedConversation);
+  }
+
+  async function loadDashboard(showLoading = true) {
+    try {
+      if (showLoading) {
+        setLoading(true);
+      }
+
+      const [dashboardResponse, recentConversationResponse] = await Promise.all([
+        fetchDashboardStats(),
+        fetchRecentConversations()
+      ]);
+
+      const mergedConversations =
+        recentConversationResponse.length > dashboardResponse.recent_conversations.length
+          ? recentConversationResponse
+          : dashboardResponse.recent_conversations;
+
+      setStats({
+        ...dashboardResponse,
+        recent_conversations: mergedConversations
+      });
+      setError(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unexpected error');
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function handleTicketAction(action: {
+    status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
+    assignee?: string;
+  }) {
+    if (!selectedTicket) {
+      return;
+    }
+
+    try {
+      setTicketActionLoading(true);
+      const updated = await updateSupportTicket({
+        id: selectedTicket.id,
+        status: action.status,
+        assignee: action.assignee
+      });
+
+      setSelectedTicket(updated);
+      await loadDashboard(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to update ticket');
+    } finally {
+      setTicketActionLoading(false);
+    }
   }
 
   const conversationColumns: DashboardTableColumn<ConversationSummary>[] = [
@@ -256,7 +349,8 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
     {
       key: 'assigned',
       header: 'Assigned to',
-      render: (conversation) => buildAssignedTo(conversation.status)
+      render: (conversation) =>
+        buildAssignedTo(conversation.status, false, conversation.assignee)
     },
     {
       key: 'updated',
@@ -293,7 +387,10 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
       render: (ticket) => (
         <div className="table-identity">
           <strong>{toTitleCase(ticket.issue_category)}</strong>
-          <span>{ticket.issue_summary}</span>
+          <span>
+            {ticket.order_number ? `${ticket.order_number} · ` : ''}
+            {ticket.issue_summary}
+          </span>
         </div>
       )
     },
@@ -320,12 +417,12 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
     {
       key: 'assigned',
       header: 'Assigned to',
-      render: () => 'Support team'
+      render: (ticket) => ticket.assignee ?? 'Unassigned'
     },
     {
       key: 'updated',
       header: 'Last updated',
-      render: (ticket) => formatDateTime(ticket.created_at)
+      render: (ticket) => formatDateTime(ticket.updated_at ?? ticket.created_at)
     },
     {
       key: 'action',
@@ -340,13 +437,6 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
 
   return (
     <section className="support-page">
-      <header className="support-page__header">
-        <div>
-          <h1>{sectionCopy[activeSection].title}</h1>
-          <p>{sectionCopy[activeSection].description}</p>
-        </div>
-      </header>
-
       {error ? (
         <div className="status-banner status-banner--error" role="alert">
           {error}
@@ -359,9 +449,11 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
             {summaryCards.map((card) => (
               <MetricCard
                 key={card.label}
+                actionLabel={card.actionLabel}
                 badge={card.badge}
                 description={card.description}
                 label={card.label}
+                onClick={() => onNavigate(card.nextSection, card.filter)}
                 value={card.value}
                 variant={card.variant}
               />
@@ -379,6 +471,7 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
                   : 'New conversations will appear here.'
             }
             rows={filteredConversations.slice(0, 8)}
+            summaryLabel={`${filteredConversations.slice(0, 8).length} shown`}
             title="Recent conversations"
           />
 
@@ -393,6 +486,7 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
                   : 'Open tickets will appear here when customers need follow-up.'
             }
             rows={filteredTickets.slice(0, 8)}
+            summaryLabel={`${filteredTickets.slice(0, 8).length} shown`}
             title="Open tickets"
           />
 
@@ -427,22 +521,22 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
             <article className="workspace-card">
               <header className="workspace-card__header">
                 <div>
-                  <h3>Needs follow-up</h3>
-                  <p>Conversations that still need a next step.</p>
+                  <h3>Waiting for customer</h3>
+                  <p>Only conversations blocked on a customer reply appear here.</p>
                 </div>
               </header>
               <ul className="detail-list">
                 {recentFollowUps.length > 0 ? (
                   recentFollowUps.slice(0, 5).map((conversation) => (
                     <li key={conversation.id}>
-                      <strong>{getConversationDisplayName(conversation)}</strong>
-                      <span>{getSupportStatusLabel(conversation.status)}</span>
+                  <strong>{getConversationDisplayName(conversation)}</strong>
+                  <span>{getSupportStatusLabel(conversation.status)}</span>
                     </li>
                   ))
                 ) : (
                   <li className="section-empty">
-                    <strong>Nothing waiting right now</strong>
-                    <span>Items that need follow-up will appear here.</span>
+                    <strong>No customer replies are pending</strong>
+                    <span>Anything waiting on the customer will appear here.</span>
                   </li>
                 )}
               </ul>
@@ -455,7 +549,7 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
         <section className="support-grid support-grid--detail">
           <DashboardTable
             columns={conversationColumns}
-            description="Customer conversations waiting for review or follow-up."
+            description="Recent customer conversations and their current support status."
             emptyMessage={
               loading
                 ? 'Loading conversations.'
@@ -464,6 +558,7 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
                   : 'Customer conversations will appear here.'
             }
             rows={filteredConversations}
+            summaryLabel={`${filteredConversations.length} total`}
             title="Conversation list"
           />
 
@@ -479,229 +574,27 @@ export function DashboardPanel({ activeSection, searchQuery }: DashboardPanelPro
         <section className="support-grid support-grid--detail">
           <DashboardTable
             columns={ticketColumns}
-            description="Open tickets that need a support teammate."
+            description="Active tickets that still need follow-up. Resolved tickets move out of this queue."
             emptyMessage={
               loading
                 ? 'Loading tickets.'
                 : normalizedQuery
                   ? 'No tickets match the current search.'
-                  : 'Open tickets will appear here.'
+                  : 'Active tickets will appear here.'
             }
             rows={filteredTickets}
+            summaryLabel={`${filteredTickets.length} active`}
             title="Ticket list"
           />
 
-          <TicketDetail ticket={selectedTicket} />
-        </section>
-      ) : null}
-
-      {activeSection === 'help_center' ? (
-        <section className="support-grid support-grid--compact">
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Common help topics</h3>
-                <p>Use these topics to guide consistent customer replies.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              {filteredCategories.length > 0 ? (
-                filteredCategories.map((item) => (
-                  <li key={item.category}>
-                    <strong>{toTitleCase(item.category)}</strong>
-                    <span>{item.total} recent conversations</span>
-                  </li>
-                ))
-              ) : (
-                <li className="section-empty">
-                  <strong>No help topics to show</strong>
-                  <span>Help topics will grow as more conversations are stored.</span>
-                </li>
-              )}
-            </ul>
-          </article>
-
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Saved replies</h3>
-                <p>Short answers the team can reuse when helping customers.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              <li>
-                <strong>Shipping update</strong>
-                <span>Let the customer know when tracking is expected and what to check next.</span>
-              </li>
-              <li>
-                <strong>Refund follow-up</strong>
-                <span>Confirm the next step and when the customer should expect an update.</span>
-              </li>
-              <li>
-                <strong>Return instructions</strong>
-                <span>Share the return steps clearly and keep the process easy to follow.</span>
-              </li>
-            </ul>
-          </article>
-        </section>
-      ) : null}
-
-      {activeSection === 'reports' ? (
-        <>
-          <section className="metric-grid metric-grid--compact">
-            {summaryCards.map((card) => (
-              <MetricCard
-                key={card.label}
-                badge={card.badge}
-                description={card.description}
-                label={card.label}
-                value={card.value}
-                variant={card.variant}
-              />
-            ))}
-          </section>
-
-          <section className="support-grid support-grid--compact">
-            <article className="workspace-card">
-              <header className="workspace-card__header">
-                <div>
-                  <h3>Common issues</h3>
-                  <p>What customers need the most help with lately.</p>
-                </div>
-              </header>
-              <ul className="category-list">
-                {filteredCategories.length > 0 ? (
-                  filteredCategories.map((item) => (
-                    <li key={item.category}>
-                      <div>
-                        <strong>{toTitleCase(item.category)}</strong>
-                        <span>{item.total} conversations</span>
-                      </div>
-                      <StatusChip variant="neutral">Trend</StatusChip>
-                    </li>
-                  ))
-                ) : (
-                  <li className="section-empty">
-                    <strong>No issue trends yet</strong>
-                    <span>Issue patterns will appear here as the support inbox grows.</span>
-                  </li>
-                )}
-              </ul>
-            </article>
-
-            <article className="workspace-card">
-              <header className="workspace-card__header">
-                <div>
-                  <h3>Recent follow-up needs</h3>
-                  <p>Conversations that still need a clear next step.</p>
-                </div>
-              </header>
-              <ul className="detail-list">
-                {recentFollowUps.length > 0 ? (
-                  recentFollowUps.map((conversation) => (
-                    <li key={conversation.id}>
-                      <strong>{getConversationDisplayName(conversation)}</strong>
-                      <span>
-                        {getSupportStatusLabel(conversation.status)}
-                        {conversation.status === 'error'
-                          ? ` · ${buildBotFailureReason(conversation)}`
-                          : ''}
-                      </span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="section-empty">
-                    <strong>No follow-up items right now</strong>
-                    <span>Items that need attention will show here.</span>
-                  </li>
-                )}
-              </ul>
-            </article>
-          </section>
-        </>
-      ) : null}
-
-      {activeSection === 'settings' ? (
-        <section className="support-grid support-grid--compact">
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Support hours</h3>
-                <p>Show the team when follow-up is expected.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              <li>
-                <strong>Weekdays</strong>
-                <span>9:00 AM to 6:00 PM</span>
-              </li>
-              <li>
-                <strong>Weekend coverage</strong>
-                <span>Urgent tickets only</span>
-              </li>
-            </ul>
-          </article>
-
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Escalation preferences</h3>
-                <p>Keep handoffs consistent and easy to manage.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              <li>
-                <strong>Refund requests</strong>
-                <span>Send to support team for review.</span>
-              </li>
-              <li>
-                <strong>Complaints</strong>
-                <span>Mark for same-day follow-up.</span>
-              </li>
-              <li>
-                <strong>Order issues</strong>
-                <span>Ask for order details before handing off.</span>
-              </li>
-            </ul>
-          </article>
-
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Saved replies</h3>
-                <p>Keep helpful answers ready for the team.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              <li>
-                <strong>Shipping delay</strong>
-                <span>Explain the delay and set the next update clearly.</span>
-              </li>
-              <li>
-                <strong>Refund received</strong>
-                <span>Confirm the request and expected timeline.</span>
-              </li>
-            </ul>
-          </article>
-
-          <article className="workspace-card">
-            <header className="workspace-card__header">
-              <div>
-                <h3>Help topics</h3>
-                <p>Keep support guidance organized around common customer needs.</p>
-              </div>
-            </header>
-            <ul className="detail-list">
-              <li>
-                <strong>Orders</strong>
-                <span>Tracking, delivery, and missing package help.</span>
-              </li>
-              <li>
-                <strong>Returns and refunds</strong>
-                <span>Return steps, refund timing, and damaged item follow-up.</span>
-              </li>
-            </ul>
-          </article>
+          <TicketDetail
+            conversation={selectedConversation}
+            onTicketAction={handleTicketAction}
+            loading={previewLoading}
+            messages={conversationMessages}
+            ticket={selectedTicket}
+            ticketActionLoading={ticketActionLoading}
+          />
         </section>
       ) : null}
     </section>
@@ -720,7 +613,10 @@ function buildSummaryCards(stats: DashboardStats): SummaryCardData[] {
       value: stats.totals.conversations.toString(),
       description: 'Recent customer conversations across the support inbox.',
       variant: 'brand',
-      badge: 'Today'
+      badge: 'Today',
+      actionLabel: 'Open conversation queue',
+      nextSection: 'conversations',
+      filter: 'all'
     },
     {
       label: 'Open tickets',
@@ -728,7 +624,10 @@ function buildSummaryCards(stats: DashboardStats): SummaryCardData[] {
       description:
         stats.totals.open_tickets > 0 ? 'Requests waiting for support follow-up.' : 'No open tickets right now.',
       variant: stats.totals.open_tickets > 0 ? 'warning' : 'success',
-      badge: stats.totals.open_tickets > 0 ? 'Open' : 'Clear'
+      badge: stats.totals.open_tickets > 0 ? 'Open' : 'Clear',
+      actionLabel: 'Review ticket queue',
+      nextSection: 'tickets',
+      filter: 'all'
     },
     {
       label: 'Waiting for reply',
@@ -738,14 +637,20 @@ function buildSummaryCards(stats: DashboardStats): SummaryCardData[] {
           ? 'Conversations waiting on more details or a next step.'
           : 'No customer conversations are waiting right now.',
       variant: stats.totals.unresolved_conversations > 0 ? 'warning' : 'success',
-      badge: stats.totals.unresolved_conversations > 0 ? 'Waiting' : 'Up to date'
+      badge: stats.totals.unresolved_conversations > 0 ? 'Waiting' : 'Up to date',
+      actionLabel: 'See waiting conversations',
+      nextSection: 'conversations',
+      filter: 'waiting'
     },
     {
       label: 'Resolved today',
       value: resolvedToday.toString(),
       description: 'Conversations that moved forward without needing extra follow-up.',
       variant: 'info',
-      badge: 'Resolved'
+      badge: 'Resolved',
+      actionLabel: 'Review resolved conversations',
+      nextSection: 'conversations',
+      filter: 'resolved'
     }
   ];
 }
@@ -819,7 +724,7 @@ function ConversationDetail({ conversation, messages, loading }: ConversationDet
         </div>
         <div>
           <dt>Assigned to</dt>
-          <dd>{buildAssignedTo(conversation.status)}</dd>
+          <dd>{buildAssignedTo(conversation.status, false, conversation.assignee)}</dd>
         </div>
         <div>
           <dt>Reference</dt>
@@ -855,9 +760,34 @@ function ConversationDetail({ conversation, messages, loading }: ConversationDet
 
 interface TicketDetailProps {
   ticket: SupportTicket | null;
+  conversation: ConversationSummary | null;
+  messages: ConversationHistoryMessage[];
+  loading: boolean;
+  ticketActionLoading: boolean;
+  onTicketAction: (action: {
+    status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
+    assignee?: string;
+  }) => Promise<void>;
 }
 
-function TicketDetail({ ticket }: TicketDetailProps) {
+function TicketDetail({
+  ticket,
+  conversation,
+  messages,
+  loading,
+  ticketActionLoading,
+  onTicketAction
+}: TicketDetailProps) {
+  const [selectedAssignee, setSelectedAssignee] = useState<string>(assigneeOptions[0]);
+
+  useEffect(() => {
+    if (!ticket) {
+      return;
+    }
+
+    setSelectedAssignee(ticket.assignee ?? getSuggestedAssignee(ticket));
+  }, [ticket]);
+
   if (!ticket) {
     return (
       <section className="workspace-card">
@@ -875,6 +805,9 @@ function TicketDetail({ ticket }: TicketDetailProps) {
   }
 
   const priority = derivePriorityFromTicket(ticket);
+  const stageCopy = buildTicketStageCopy(ticket);
+  const isResolved = ticket.status === 'resolved';
+  const hasOwner = Boolean(ticket.assignee);
 
   return (
     <section className="workspace-card workspace-card--preview">
@@ -902,16 +835,24 @@ function TicketDetail({ ticket }: TicketDetailProps) {
           <dd>{toTitleCase(ticket.issue_category)}</dd>
         </div>
         <div>
+          <dt>Linked order</dt>
+          <dd>{ticket.order_number ?? 'Not attached'}</dd>
+        </div>
+        <div>
           <dt>Priority</dt>
           <dd>{toTitleCase(priority)}</dd>
         </div>
         <div>
           <dt>Assigned to</dt>
-          <dd>Support team</dd>
+          <dd>{ticket.assignee ?? 'Unassigned'}</dd>
         </div>
         <div>
           <dt>Last updated</dt>
-          <dd>{formatDateTime(ticket.created_at)}</dd>
+          <dd>{formatDateTime(ticket.updated_at ?? ticket.created_at)}</dd>
+        </div>
+        <div>
+          <dt>Shipment status</dt>
+          <dd>{ticket.shipment_status ? toTitleCase(ticket.shipment_status) : 'Not available'}</dd>
         </div>
       </dl>
 
@@ -920,6 +861,135 @@ function TicketDetail({ ticket }: TicketDetailProps) {
           <strong>Customer issue</strong>
         </div>
         <p className="preview-transcript__copy">{ticket.issue_summary}</p>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>{stageCopy.title}</strong>
+        </div>
+        <p className="preview-transcript__copy">{stageCopy.description}</p>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>Support context</strong>
+        </div>
+        <ul className="detail-list">
+          <li>
+            <strong>Escalation reason</strong>
+            <span>{ticket.escalation_reason ?? 'Customer asked for follow-up support.'}</span>
+          </li>
+          <li>
+            <strong>Timeline summary</strong>
+            <span>{ticket.timeline_summary ?? 'No order timeline was attached to this ticket.'}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>Ticket actions</strong>
+        </div>
+        <div className="ticket-workflow">
+          <div className="ticket-workflow__group">
+            <div className="ticket-workflow__copy">
+              <strong>Owner</strong>
+              <span>Choose who should handle this request.</span>
+            </div>
+            <div className="ticket-assignee-picker">
+              <label className="sr-only" htmlFor="ticket-assignee">
+                Assign ticket owner
+              </label>
+              <select
+                id="ticket-assignee"
+                value={selectedAssignee}
+                onChange={(event) => setSelectedAssignee(event.target.value)}
+                disabled={ticketActionLoading}
+              >
+                {assigneeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="secondary-button"
+                disabled={ticketActionLoading || selectedAssignee === (ticket.assignee ?? '')}
+                onClick={() => void onTicketAction({ assignee: selectedAssignee })}
+                type="button"
+              >
+                {ticket.assignee ? 'Update owner' : 'Assign owner'}
+              </button>
+            </div>
+          </div>
+
+          <div className="ticket-workflow__group">
+            <div className="ticket-workflow__copy">
+              <strong>Ticket status</strong>
+              <span>Move the ticket to the next clear step for the support team.</span>
+            </div>
+            <div className="ticket-status-actions">
+              <button
+                className="secondary-button"
+                disabled={ticketActionLoading || ticket.status === 'open'}
+                onClick={() => void onTicketAction({ status: 'open' })}
+                type="button"
+              >
+                {isResolved ? 'Reopen ticket' : 'Move back to open'}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={ticketActionLoading || ticket.status === 'in_progress' || !hasOwner}
+                onClick={() => void onTicketAction({ status: 'in_progress' })}
+                type="button"
+              >
+                Move to in progress
+              </button>
+              <button
+                className="secondary-button"
+                disabled={
+                  ticketActionLoading || ticket.status === 'waiting_on_customer' || !hasOwner
+                }
+                onClick={() => void onTicketAction({ status: 'waiting_on_customer' })}
+                type="button"
+              >
+                Waiting for customer
+              </button>
+              <button
+                className="primary-button"
+                disabled={ticketActionLoading || isResolved}
+                onClick={() => void onTicketAction({ status: 'resolved' })}
+                type="button"
+              >
+                Resolve ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="preview-transcript">
+        <div className="preview-transcript__header">
+          <strong>Customer message history</strong>
+        </div>
+        {loading ? (
+          <p className="workspace-card__empty">Loading messages.</p>
+        ) : messages.length > 0 ? (
+          <ul className="preview-message-list">
+            {messages.map((message) => (
+              <li key={message.id}>
+                <strong>{message.role === 'assistant' ? 'Support assistant' : 'Customer'}</strong>
+                <span>{message.content}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="workspace-card__empty">
+            {conversation
+              ? 'No saved messages were found for this ticket yet.'
+              : 'Open a linked conversation to see the message history.'}
+          </p>
+        )}
       </div>
     </section>
   );

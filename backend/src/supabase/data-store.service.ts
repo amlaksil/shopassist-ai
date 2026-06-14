@@ -5,12 +5,19 @@ import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 
 import type {
+  CustomerRecord,
   ConversationRecord,
   ConversationStatus,
   DashboardStats,
   FaqArticle,
+  OrderItemRecord,
+  OrderRecord,
   Product,
+  RefundRecord,
+  ReturnRecord,
+  ShipmentRecord,
   StoredMessage,
+  TicketContextPayload,
   SupportTicket
 } from '../common/types/app.types';
 
@@ -39,8 +46,15 @@ interface TicketInsertInput {
   email: string;
   issue_summary: string;
   issue_category: string;
+  ticket_context?: TicketContextPayload;
   provider_used?: string | null;
   model_used?: string | null;
+}
+
+interface TicketUpdateInput {
+  id: string;
+  status?: SupportTicket['status'];
+  assignee?: string | null;
 }
 
 interface ProviderMetadata {
@@ -54,6 +68,12 @@ export class DataStoreService {
   private readonly supabase: SupabaseClient | null;
   private readonly localFaqArticles: FaqArticle[];
   private readonly localProducts: Product[];
+  private readonly localCustomers: CustomerRecord[];
+  private readonly localOrders: OrderRecord[];
+  private readonly localOrderItems: OrderItemRecord[];
+  private readonly localShipments: ShipmentRecord[];
+  private readonly localReturns: ReturnRecord[];
+  private readonly localRefunds: RefundRecord[];
   private readonly localConversations = new Map<string, ConversationRecord>();
   private readonly localMessages: StoredMessage[] = [];
   private readonly localTickets: SupportTicket[] = [];
@@ -71,6 +91,12 @@ export class DataStoreService {
 
     this.localFaqArticles = this.loadJsonFile<FaqArticle[]>('data/faqs/faqs.json');
     this.localProducts = this.loadJsonFile<Product[]>('data/products/products.json');
+    this.localCustomers = this.loadJsonFile<CustomerRecord[]>('data/commerce/customers.json');
+    this.localOrders = this.loadJsonFile<OrderRecord[]>('data/commerce/orders.json');
+    this.localOrderItems = this.loadJsonFile<OrderItemRecord[]>('data/commerce/order-items.json');
+    this.localShipments = this.loadJsonFile<ShipmentRecord[]>('data/commerce/shipments.json');
+    this.localReturns = this.loadJsonFile<ReturnRecord[]>('data/commerce/returns.json');
+    this.localRefunds = this.loadJsonFile<RefundRecord[]>('data/commerce/refunds.json');
   }
 
   getStorageMode() {
@@ -129,6 +155,96 @@ export class DataStoreService {
     }
 
     return (data ?? []) as Product[];
+  }
+
+  async getCustomers(): Promise<CustomerRecord[]> {
+    if (!this.supabase) {
+      return this.localCustomers;
+    }
+
+    const { data, error } = await this.supabase.from('customers').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local customer data: ${error.message}`);
+      return this.localCustomers;
+    }
+
+    return (data ?? []) as CustomerRecord[];
+  }
+
+  async getOrders(): Promise<OrderRecord[]> {
+    if (!this.supabase) {
+      return this.localOrders;
+    }
+
+    const { data, error } = await this.supabase.from('orders').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local order data: ${error.message}`);
+      return this.localOrders;
+    }
+
+    return (data ?? []) as OrderRecord[];
+  }
+
+  async getOrderItems(): Promise<OrderItemRecord[]> {
+    if (!this.supabase) {
+      return this.localOrderItems;
+    }
+
+    const { data, error } = await this.supabase.from('order_items').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local order item data: ${error.message}`);
+      return this.localOrderItems;
+    }
+
+    return (data ?? []) as OrderItemRecord[];
+  }
+
+  async getShipments(): Promise<ShipmentRecord[]> {
+    if (!this.supabase) {
+      return this.localShipments;
+    }
+
+    const { data, error } = await this.supabase.from('shipments').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local shipment data: ${error.message}`);
+      return this.localShipments;
+    }
+
+    return (data ?? []) as ShipmentRecord[];
+  }
+
+  async getReturns(): Promise<ReturnRecord[]> {
+    if (!this.supabase) {
+      return this.localReturns;
+    }
+
+    const { data, error } = await this.supabase.from('returns').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local return data: ${error.message}`);
+      return this.localReturns;
+    }
+
+    return (data ?? []) as ReturnRecord[];
+  }
+
+  async getRefunds(): Promise<RefundRecord[]> {
+    if (!this.supabase) {
+      return this.localRefunds;
+    }
+
+    const { data, error } = await this.supabase.from('refunds').select('*');
+
+    if (error) {
+      this.logger.warn(`Falling back to local refund data: ${error.message}`);
+      return this.localRefunds;
+    }
+
+    return (data ?? []) as RefundRecord[];
   }
 
   async ensureConversation(input: EnsureConversationInput): Promise<ConversationRecord> {
@@ -282,9 +398,11 @@ export class DataStoreService {
 
   async listRecentConversations(limit = 10): Promise<ConversationRecord[]> {
     if (!this.supabase) {
-      return [...this.localConversations.values()]
+      const conversations = [...this.localConversations.values()]
         .sort((left, right) => right.updated_at.localeCompare(left.updated_at))
         .slice(0, limit);
+
+      return this.attachTicketAssignments(conversations, this.localTickets);
     }
 
     const { data, error } = await this.supabase
@@ -297,7 +415,10 @@ export class DataStoreService {
       throw new Error(`Unable to list conversations: ${error.message}`);
     }
 
-    return (data ?? []) as ConversationRecord[];
+    return this.attachTicketAssignments(
+      (data ?? []) as ConversationRecord[],
+      await this.getTicketsForSessions((data ?? []).map((conversation) => conversation.session_id))
+    );
   }
 
   async getLatestProviderMetadata(sessionId: string): Promise<ProviderMetadata> {
@@ -345,9 +466,17 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        assignee: 'Unassigned',
+        order_number: input.ticket_context?.order_number ?? null,
+        checkout_email: input.ticket_context?.checkout_email ?? null,
+        shipment_status: input.ticket_context?.shipment_status ?? null,
+        escalation_reason: input.ticket_context?.escalation_reason ?? null,
+        priority: input.ticket_context?.priority ?? null,
+        timeline_summary: input.ticket_context?.timeline_summary ?? null,
         provider_used: input.provider_used ?? null,
         model_used: input.model_used ?? null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       this.localTickets.unshift(ticket);
@@ -363,6 +492,13 @@ export class DataStoreService {
         issue_summary: input.issue_summary,
         issue_category: input.issue_category,
         status: 'open',
+        assignee: 'Unassigned',
+        order_number: input.ticket_context?.order_number ?? null,
+        checkout_email: input.ticket_context?.checkout_email ?? null,
+        shipment_status: input.ticket_context?.shipment_status ?? null,
+        escalation_reason: input.ticket_context?.escalation_reason ?? null,
+        priority: input.ticket_context?.priority ?? null,
+        timeline_summary: input.ticket_context?.timeline_summary ?? null,
         provider_used: input.provider_used ?? null,
         model_used: input.model_used ?? null
       })
@@ -378,14 +514,19 @@ export class DataStoreService {
 
   async listOpenTickets(limit = 10): Promise<SupportTicket[]> {
     if (!this.supabase) {
-      return this.localTickets.filter((ticket) => ticket.status === 'open').slice(0, limit);
+      return this.localTickets
+        .filter((ticket) => ticket.status !== 'resolved')
+        .sort((left, right) =>
+          (right.updated_at ?? right.created_at).localeCompare(left.updated_at ?? left.created_at)
+        )
+        .slice(0, limit);
     }
 
     const { data, error } = await this.supabase
       .from('support_tickets')
       .select('*')
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
+      .neq('status', 'resolved')
+      .order('updated_at', { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -393,6 +534,53 @@ export class DataStoreService {
     }
 
     return (data ?? []) as SupportTicket[];
+  }
+
+  async updateSupportTicket(input: TicketUpdateInput): Promise<SupportTicket> {
+    if (!this.supabase) {
+      const existingIndex = this.localTickets.findIndex((ticket) => ticket.id === input.id);
+
+      if (existingIndex === -1) {
+        throw new Error('Unable to update ticket: not found');
+      }
+
+      const existing = this.localTickets[existingIndex];
+      const updated: SupportTicket = {
+        ...existing,
+        status: input.status ?? existing.status,
+        assignee:
+          input.assignee === undefined ? (existing.assignee ?? 'Unassigned') : input.assignee,
+        updated_at: new Date().toISOString()
+      };
+
+      this.localTickets[existingIndex] = updated;
+      return updated;
+    }
+
+    const updatePayload: Record<string, string | null> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (input.status !== undefined) {
+      updatePayload.status = input.status;
+    }
+
+    if (input.assignee !== undefined) {
+      updatePayload.assignee = input.assignee;
+    }
+
+    const { data, error } = await this.supabase
+      .from('support_tickets')
+      .update(updatePayload)
+      .eq('id', input.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Unable to update ticket: ${error.message}`);
+    }
+
+    return data as SupportTicket;
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
@@ -419,14 +607,16 @@ export class DataStoreService {
 
     const unresolvedConversations = allConversations.filter(
       (conversation) =>
-        conversation.status === 'ticket_required' || conversation.status === 'clarification_needed'
+        conversation.status === 'clarification_needed' ||
+        conversation.status === 'ticket_required' ||
+        conversation.status === 'waiting_on_customer'
     );
     const botFailures = allConversations.filter((conversation) => conversation.status === 'error');
 
     return {
       totals: {
         conversations: allConversations.length,
-        open_tickets: allTickets.filter((ticket) => ticket.status === 'open').length,
+        open_tickets: allTickets.filter((ticket) => ticket.status !== 'resolved').length,
         unresolved_conversations: unresolvedConversations.length,
         bot_failures: botFailures.length
       },
@@ -483,5 +673,45 @@ export class DataStoreService {
       error.code === '23505' &&
       error.message.includes('conversations_session_id_key')
     );
+  }
+
+  private attachTicketAssignments(
+    conversations: ConversationRecord[],
+    tickets: SupportTicket[]
+  ): ConversationRecord[] {
+    const latestTicketBySession = new Map<string, SupportTicket>();
+
+    for (const ticket of tickets) {
+      const existing = latestTicketBySession.get(ticket.session_id);
+      const currentUpdated = ticket.updated_at ?? ticket.created_at;
+      const existingUpdated = existing ? existing.updated_at ?? existing.created_at : '';
+
+      if (!existing || currentUpdated > existingUpdated) {
+        latestTicketBySession.set(ticket.session_id, ticket);
+      }
+    }
+
+    return conversations.map((conversation) => ({
+      ...conversation,
+      assignee: latestTicketBySession.get(conversation.session_id)?.assignee ?? null
+    }));
+  }
+
+  private async getTicketsForSessions(sessionIds: string[]): Promise<SupportTicket[]> {
+    if (!this.supabase || sessionIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from('support_tickets')
+      .select('*')
+      .in('session_id', sessionIds);
+
+    if (error) {
+      this.logger.warn(`Unable to load linked ticket owners: ${error.message}`);
+      return [];
+    }
+
+    return (data ?? []) as SupportTicket[];
   }
 }

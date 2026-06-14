@@ -13,6 +13,7 @@ interface DashboardTableProps<Row extends { id: string }> {
   rows: Row[];
   columns: DashboardTableColumn<Row>[];
   emptyMessage: string;
+  summaryLabel?: string;
 }
 
 export function DashboardTable<Row extends { id: string }>({
@@ -20,7 +21,8 @@ export function DashboardTable<Row extends { id: string }>({
   description,
   rows,
   columns,
-  emptyMessage
+  emptyMessage,
+  summaryLabel
 }: DashboardTableProps<Row>) {
   return (
     <section className="workspace-card workspace-card--table">
@@ -29,6 +31,7 @@ export function DashboardTable<Row extends { id: string }>({
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
+        {summaryLabel ? <span className="workspace-card__meta">{summaryLabel}</span> : null}
       </header>
 
       <div className="table-shell">

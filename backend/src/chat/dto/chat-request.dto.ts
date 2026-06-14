@@ -17,5 +17,14 @@ export class ChatRequestDto {
   @ValidateNested()
   @Type(() => CustomerInfoDto)
   customer?: CustomerInfoDto;
-}
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  order_number?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  checkout_email?: string;
+}

@@ -9,6 +9,8 @@ interface MetricCardProps {
   variant: 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
   badge: string;
   context?: ReactNode;
+  actionLabel?: string;
+  onClick?: () => void;
 }
 
 export function MetricCard({
@@ -17,10 +19,14 @@ export function MetricCard({
   description,
   variant,
   badge,
-  context
+  context,
+  actionLabel,
+  onClick
 }: MetricCardProps) {
-  return (
-    <article className={`metric-card metric-card--${variant}`}>
+  const className = `metric-card metric-card--${variant}${onClick ? ' metric-card--interactive' : ''}`;
+
+  const content = (
+    <>
       <div className="metric-card__header">
         <span>{label}</span>
         <StatusChip variant={variant}>{badge}</StatusChip>
@@ -28,6 +34,21 @@ export function MetricCard({
       <strong>{value}</strong>
       <p>{description}</p>
       {context ? <div className="metric-card__context">{context}</div> : null}
+      {actionLabel ? <div className="metric-card__action">{actionLabel}</div> : null}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button className={className} onClick={onClick} type="button">
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <article className={className}>
+      {content}
     </article>
   );
 }

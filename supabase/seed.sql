@@ -142,3 +142,370 @@ on conflict (id) do update set
   category = excluded.category,
   inventory_status = excluded.inventory_status,
   attributes = excluded.attributes;
+
+insert into customers (id, customer_code, name, email, created_at, updated_at)
+values
+  (
+    '6a4835c1-8948-44cc-a7b7-ae814ec0e593',
+    'CUST-1001',
+    'Hanna Bekele',
+    'hanna.bekele@example.com',
+    '2026-05-02T10:00:00.000Z',
+    '2026-06-11T15:30:00.000Z'
+  ),
+  (
+    '511cf0f5-09c3-4da4-8c43-065e7d3ba12e',
+    'CUST-1002',
+    'Daniel Tesfaye',
+    'daniel.tesfaye@example.com',
+    '2026-05-19T09:15:00.000Z',
+    '2026-06-12T08:40:00.000Z'
+  ),
+  (
+    '019afbe8-5848-430b-9cf9-0b1dcd827035',
+    'CUST-1003',
+    'Eden Ali',
+    'eden.ali@example.com',
+    '2026-06-01T12:20:00.000Z',
+    '2026-06-11T18:10:00.000Z'
+  ),
+  (
+    '5a5cbd89-d68b-4e04-b80b-712ceba07943',
+    'CUST-1004',
+    'Naomi Rivera',
+    'naomi.rivera@example.com',
+    '2026-04-26T14:05:00.000Z',
+    '2026-06-10T16:25:00.000Z'
+  )
+on conflict (id) do update set
+  customer_code = excluded.customer_code,
+  name = excluded.name,
+  email = excluded.email,
+  updated_at = excluded.updated_at;
+
+insert into orders (
+  id,
+  order_number,
+  customer_id,
+  status,
+  total_amount,
+  currency,
+  placed_at,
+  shipping_address,
+  created_at,
+  updated_at
+)
+values
+  (
+    '8db8d98e-06d9-47ff-a991-e5528de74cea',
+    'ORD-1001',
+    '6a4835c1-8948-44cc-a7b7-ae814ec0e593',
+    'delivered',
+    179.00,
+    'USD',
+    '2026-06-03T10:25:00.000Z',
+    '1450 West Lake St, Chicago, IL 60607',
+    '2026-06-03T10:25:00.000Z',
+    '2026-06-08T16:10:00.000Z'
+  ),
+  (
+    'f86a5f2d-c8bd-4cf0-a837-7cc20caf0b67',
+    'ORD-1002',
+    '511cf0f5-09c3-4da4-8c43-065e7d3ba12e',
+    'shipped',
+    96.00,
+    'USD',
+    '2026-06-09T09:45:00.000Z',
+    '780 Grant Ave, Seattle, WA 98109',
+    '2026-06-09T09:45:00.000Z',
+    '2026-06-12T07:30:00.000Z'
+  ),
+  (
+    'c3c55e67-9bb1-4574-b8bc-e2865e27ce77',
+    'ORD-1003',
+    '019afbe8-5848-430b-9cf9-0b1dcd827035',
+    'processing',
+    34.00,
+    'USD',
+    '2026-06-11T17:12:00.000Z',
+    '112 Pine Street, Austin, TX 78701',
+    '2026-06-11T17:12:00.000Z',
+    '2026-06-12T09:05:00.000Z'
+  ),
+  (
+    '1cf7e6f9-26fe-440a-b905-fbe00da8a302',
+    'ORD-1004',
+    '6a4835c1-8948-44cc-a7b7-ae814ec0e593',
+    'shipped',
+    128.00,
+    'USD',
+    '2026-06-10T13:22:00.000Z',
+    '1450 West Lake St, Chicago, IL 60607',
+    '2026-06-10T13:22:00.000Z',
+    '2026-06-12T05:40:00.000Z'
+  ),
+  (
+    '9b843642-3f57-4f42-8d9e-cbc3f9a4a1db',
+    'ORD-1005',
+    '5a5cbd89-d68b-4e04-b80b-712ceba07943',
+    'delivered',
+    149.00,
+    'USD',
+    '2026-04-22T11:18:00.000Z',
+    '490 Cedar Ave, Denver, CO 80203',
+    '2026-04-22T11:18:00.000Z',
+    '2026-04-28T13:50:00.000Z'
+  ),
+  (
+    'f9b5ba34-6642-4f8d-a74d-9260a4539c73',
+    'ORD-1006',
+    '5a5cbd89-d68b-4e04-b80b-712ceba07943',
+    'delivered',
+    72.00,
+    'USD',
+    '2026-06-02T15:05:00.000Z',
+    '490 Cedar Ave, Denver, CO 80203',
+    '2026-06-02T15:05:00.000Z',
+    '2026-06-11T12:15:00.000Z'
+  )
+on conflict (id) do update set
+  order_number = excluded.order_number,
+  customer_id = excluded.customer_id,
+  status = excluded.status,
+  total_amount = excluded.total_amount,
+  currency = excluded.currency,
+  placed_at = excluded.placed_at,
+  shipping_address = excluded.shipping_address,
+  updated_at = excluded.updated_at;
+
+insert into order_items (
+  id,
+  order_id,
+  product_name,
+  sku,
+  quantity,
+  unit_price,
+  currency,
+  created_at
+)
+values
+  (
+    'a3c42a0c-9c0f-4dfa-8ab6-e7661fd8d2bb',
+    '8db8d98e-06d9-47ff-a991-e5528de74cea',
+    'Atlas Wireless Headphones',
+    'ATL-HDP-001',
+    1,
+    179.00,
+    'USD',
+    '2026-06-03T10:25:00.000Z'
+  ),
+  (
+    '00a436f7-4838-405e-8a45-c6e720d6458a',
+    'f86a5f2d-c8bd-4cf0-a837-7cc20caf0b67',
+    'Northstar Everyday Backpack',
+    'NOR-BAG-020',
+    1,
+    96.00,
+    'USD',
+    '2026-06-09T09:45:00.000Z'
+  ),
+  (
+    '0cf96295-3a88-45bd-9b72-3454cd673b2a',
+    'c3c55e67-9bb1-4574-b8bc-e2865e27ce77',
+    'Terra Insulated Bottle',
+    'TER-BTL-145',
+    1,
+    34.00,
+    'USD',
+    '2026-06-11T17:12:00.000Z'
+  ),
+  (
+    'cfd6e395-3543-4df8-b8af-e95f7fe93fda',
+    '1cf7e6f9-26fe-440a-b905-fbe00da8a302',
+    'Drift Performance Sneakers',
+    'DRF-SHO-440',
+    1,
+    128.00,
+    'USD',
+    '2026-06-10T13:22:00.000Z'
+  ),
+  (
+    'e9d8ad95-d7ef-48a7-b7c0-4824a1551dcf',
+    '9b843642-3f57-4f42-8d9e-cbc3f9a4a1db',
+    'Mira Ceramic Skincare Fridge',
+    'MIR-BEA-305',
+    1,
+    149.00,
+    'USD',
+    '2026-04-22T11:18:00.000Z'
+  ),
+  (
+    'f68e2373-2298-44ce-8707-97002c06b2a8',
+    'f9b5ba34-6642-4f8d-a74d-9260a4539c73',
+    'Luma Smart Desk Lamp',
+    'LUM-LMP-210',
+    1,
+    72.00,
+    'USD',
+    '2026-06-02T15:05:00.000Z'
+  )
+on conflict (id) do update set
+  order_id = excluded.order_id,
+  product_name = excluded.product_name,
+  sku = excluded.sku,
+  quantity = excluded.quantity,
+  unit_price = excluded.unit_price,
+  currency = excluded.currency;
+
+insert into shipments (
+  id,
+  order_id,
+  tracking_number,
+  carrier,
+  status,
+  latest_update,
+  last_location,
+  estimated_delivery_date,
+  shipped_at,
+  delivered_at,
+  created_at,
+  updated_at
+)
+values
+  (
+    '2a211e01-ee55-46a2-a4ad-c13f1f6df4f0',
+    '8db8d98e-06d9-47ff-a991-e5528de74cea',
+    'PP1001001',
+    'ParcelPath',
+    'delivered',
+    'Delivered at front desk.',
+    'Chicago, IL',
+    '2026-06-08',
+    '2026-06-05T08:40:00.000Z',
+    '2026-06-08T16:10:00.000Z',
+    '2026-06-05T08:40:00.000Z',
+    '2026-06-08T16:10:00.000Z'
+  ),
+  (
+    'c39e0d37-9340-4409-bb8f-a0927d881537',
+    'f86a5f2d-c8bd-4cf0-a837-7cc20caf0b67',
+    'SLX9023345',
+    'Skyline Express',
+    'in_transit',
+    'Left the regional sorting hub early this morning.',
+    'Portland, OR',
+    '2026-06-14',
+    '2026-06-10T14:20:00.000Z',
+    null,
+    '2026-06-10T14:20:00.000Z',
+    '2026-06-12T07:30:00.000Z'
+  ),
+  (
+    'b3da1d77-0dfe-453d-9f7b-2a16ac18292e',
+    '1cf7e6f9-26fe-440a-b905-fbe00da8a302',
+    'FRT4481202',
+    'FirstRoute',
+    'delayed',
+    'Weather delay reported by the carrier. A new scan is expected within 24 hours.',
+    'Milwaukee, WI',
+    '2026-06-15',
+    '2026-06-11T11:05:00.000Z',
+    null,
+    '2026-06-11T11:05:00.000Z',
+    '2026-06-12T05:40:00.000Z'
+  ),
+  (
+    'f0a812b4-0ef2-485e-a79b-9171034573a6',
+    '9b843642-3f57-4f42-8d9e-cbc3f9a4a1db',
+    'RMX5017704',
+    'RapidMove',
+    'delivered',
+    'Delivered to the front porch.',
+    'Denver, CO',
+    '2026-04-28',
+    '2026-04-24T09:15:00.000Z',
+    '2026-04-28T13:50:00.000Z',
+    '2026-04-24T09:15:00.000Z',
+    '2026-04-28T13:50:00.000Z'
+  ),
+  (
+    'd3e64b29-b8b3-45a1-af2c-45259b80cfd0',
+    'f9b5ba34-6642-4f8d-a74d-9260a4539c73',
+    'CNR2204819',
+    'CourierNorth',
+    'delivered',
+    'Delivered to the mail room.',
+    'Denver, CO',
+    '2026-06-07',
+    '2026-06-04T10:40:00.000Z',
+    '2026-06-07T12:05:00.000Z',
+    '2026-06-04T10:40:00.000Z',
+    '2026-06-07T12:05:00.000Z'
+  )
+on conflict (id) do update set
+  order_id = excluded.order_id,
+  tracking_number = excluded.tracking_number,
+  carrier = excluded.carrier,
+  status = excluded.status,
+  latest_update = excluded.latest_update,
+  last_location = excluded.last_location,
+  estimated_delivery_date = excluded.estimated_delivery_date,
+  shipped_at = excluded.shipped_at,
+  delivered_at = excluded.delivered_at,
+  updated_at = excluded.updated_at;
+
+insert into returns (id, order_id, status, reason, requested_at, updated_at)
+values
+  (
+    '682ff33d-08a0-4c0c-b7a7-7f25c6dff8d0',
+    '1cf7e6f9-26fe-440a-b905-fbe00da8a302',
+    'approved',
+    'Wrong size ordered',
+    '2026-06-12T08:55:00.000Z',
+    '2026-06-12T09:20:00.000Z'
+  ),
+  (
+    '57a1f9f0-f75f-4975-b854-ad8d8440b874',
+    'f9b5ba34-6642-4f8d-a74d-9260a4539c73',
+    'completed',
+    'Lamp arrived damaged',
+    '2026-06-08T09:10:00.000Z',
+    '2026-06-10T15:25:00.000Z'
+  )
+on conflict (id) do update set
+  order_id = excluded.order_id,
+  status = excluded.status,
+  reason = excluded.reason,
+  requested_at = excluded.requested_at,
+  updated_at = excluded.updated_at;
+
+insert into refunds (id, order_id, status, amount, currency, requested_at, processed_at, updated_at)
+values
+  (
+    '1cc89fd3-e040-46eb-b8ce-e99a796ec812',
+    '1cf7e6f9-26fe-440a-b905-fbe00da8a302',
+    'pending',
+    128.00,
+    'USD',
+    '2026-06-12T09:20:00.000Z',
+    null,
+    '2026-06-12T09:20:00.000Z'
+  ),
+  (
+    '6e16adfd-1e32-4a43-b6b0-b3d8fe17c694',
+    'f9b5ba34-6642-4f8d-a74d-9260a4539c73',
+    'processed',
+    72.00,
+    'USD',
+    '2026-06-10T15:25:00.000Z',
+    '2026-06-11T12:15:00.000Z',
+    '2026-06-11T12:15:00.000Z'
+  )
+on conflict (id) do update set
+  order_id = excluded.order_id,
+  status = excluded.status,
+  amount = excluded.amount,
+  currency = excluded.currency,
+  requested_at = excluded.requested_at,
+  processed_at = excluded.processed_at,
+  updated_at = excluded.updated_at;

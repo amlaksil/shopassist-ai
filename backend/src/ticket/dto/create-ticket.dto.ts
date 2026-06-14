@@ -1,7 +1,8 @@
 import { Type } from 'class-transformer';
-import { IsObject, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 import { CreateTicketCustomerDto } from './create-ticket-customer.dto';
+import { CreateTicketContextDto } from './create-ticket-context.dto';
 
 export class CreateTicketDto {
   @IsString()
@@ -16,4 +17,10 @@ export class CreateTicketDto {
   @ValidateNested()
   @Type(() => CreateTicketCustomerDto)
   customer!: CreateTicketCustomerDto;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CreateTicketContextDto)
+  ticket_context?: CreateTicketContextDto;
 }

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1cc89fd3-e040-46eb-b8ce-e99a796ec812",
+    "order_id": "1cf7e6f9-26fe-440a-b905-fbe00da8a302",
+    "status": "pending",
+    "amount": 128,
+    "currency": "USD",
+    "requested_at": "2026-06-12T09:20:00.000Z",
+    "processed_at": null,
+    "updated_at": "2026-06-12T09:20:00.000Z"
+  },
+  {
+    "id": "6e16adfd-1e32-4a43-b6b0-b3d8fe17c694",
+    "order_id": "f9b5ba34-6642-4f8d-a74d-9260a4539c73",
+    "status": "processed",
+    "amount": 72,
+    "currency": "USD",
+    "requested_at": "2026-06-10T15:25:00.000Z",
+    "processed_at": "2026-06-11T12:15:00.000Z",
+    "updated_at": "2026-06-11T12:15:00.000Z"
+  }
+]
