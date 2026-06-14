@@ -853,6 +853,7 @@ textarea:focus-visible {
   color: #ffffff;
   font-size: 1.12rem;
   line-height: 1.2;
+  margin: 0;
 }
 
 .sidebar__logo {
@@ -863,10 +864,6 @@ textarea:focus-visible {
   font-size: 0.88rem;
   height: 48px;
   width: 48px;
-}
-
-.sidebar__eyebrow {
-  color: rgba(232, 238, 246, 0.62);
 }
 
 .sidebar__nav {
