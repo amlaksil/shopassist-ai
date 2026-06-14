@@ -22,6 +22,7 @@ export function validateEnv(config: Record<string, unknown>) {
   return {
     ...config,
     AI_PROVIDER: provider,
-    PORT: Number(config.PORT ?? 3000)
+    PORT: Number(config.PORT ?? 3000),
+    CORS_ORIGIN: String(config.CORS_ORIGIN ?? '')
   };
 }

@@ -33,6 +33,7 @@ This project is designed to show the kind of practical engineering work a real p
 - Database: Supabase / PostgreSQL
 - AI: OpenAI, Anthropic/Claude, Gemini, provider-based architecture
 - Testing: Jest unit tests for backend chat flow
+- CI: GitHub Actions for lint, typecheck, tests, and builds on PRs to `main`
 
 ## Architecture overview
 
@@ -259,6 +260,108 @@ Protection happens in two places:
 RLS is enabled for the application tables, using `public.is_support_admin()` for authenticated admin access.
 
 Customer-facing endpoints also include basic request rate limiting to reduce spam and abusive traffic.
+
+## CI workflow
+
+GitHub Actions is configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+It runs on every pull request targeting `main` and checks:
+
+- linting
+- TypeScript typechecking
+- backend tests
+- frontend and backend builds
+
+Local equivalents:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Vercel deployment
+
+This repo is ready for Vercel preview deployments for the frontend workspace.
+
+Important setup:
+
+- import the repo into Vercel
+- set the **Root Directory** to `frontend`
+- Vercel will use [`frontend/vercel.json`](frontend/vercel.json) so direct visits to `/admin` and other client-side routes still load the app
+
+Recommended Vercel environment variables:
+
+```bash
+VITE_API_BASE_URL=https://your-backend-url/api
+VITE_SUPABASE_URL=https://your-supabase-project-url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_ADMIN_ALLOW_SIGNUP=false
+```
+
+### Production and preview behavior
+
+Once the GitHub repo is connected to Vercel:
+
+- pushes to `main` can deploy the production frontend
+- pull requests automatically get **Preview Deployments**
+- those preview URLs are the easiest QA environment for reviewing UI changes before merge
+
+### Backend deployment note
+
+The current NestJS backend is not configured for direct Vercel deployment in this repo layout.
+
+For a production-style setup:
+
+- deploy the frontend to Vercel
+- deploy the backend to a Node-friendly host such as Render, Railway, or Fly.io
+- point `VITE_API_BASE_URL` in Vercel to that backend
+
+### Recommended backend deployment: AWS EC2
+
+This repo is prepared for an `EC2 + PM2 + Nginx` backend deployment.
+
+Deployment assets included:
+
+- [`docs/deployment-ec2.md`](docs/deployment-ec2.md)
+- [`backend/ecosystem.config.cjs`](backend/ecosystem.config.cjs)
+- [`backend/.env.production.example`](backend/.env.production.example)
+- [`deploy/nginx/shopassist-api.conf`](deploy/nginx/shopassist-api.conf)
+
+Recommended production shape:
+
+- frontend on Vercel
+- backend on EC2
+- database and auth on Supabase
+
+Minimum backend environment variables:
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+SUPABASE_URL=https://your-supabase-project-url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+You can switch providers by changing:
+
+- `AI_PROVIDER=openai` and `OPENAI_API_KEY`
+- `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`
+- `AI_PROVIDER=mock` for smoke testing without a live model
+
+After the backend is live, update the Vercel frontend env:
+
+```bash
+VITE_API_BASE_URL=https://api.yourdomain.com/api
+```
+
+Detailed EC2 steps are in [`docs/deployment-ec2.md`](docs/deployment-ec2.md).
+
+### Alternative backend deployment
+
+If you prefer a managed Node host instead of EC2, you can still deploy the backend to Render, Railway, or Fly.io and point the Vercel frontend to that API URL.
 
 ## API summary
 
