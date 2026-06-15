@@ -5,8 +5,9 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AdminSessionUser } from '../common/types/app.types';
+import { createServerSupabaseClient } from '../supabase/create-server-supabase-client';
 
 interface SupportAdminRecord {
   email: string;
@@ -24,7 +25,7 @@ export class AdminAuthService {
 
     this.supabase =
       supabaseUrl && serviceRoleKey
-        ? createClient(supabaseUrl, serviceRoleKey, {
+        ? createServerSupabaseClient(supabaseUrl, serviceRoleKey, {
             auth: { persistSession: false }
           })
         : null;

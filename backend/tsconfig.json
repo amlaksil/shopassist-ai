@@ -9,7 +9,8 @@
     "baseUrl": "./src",
     "types": [
       "node",
-      "jest"
+      "jest",
+      "ws"
     ]
   },
   "include": [
@@ -18,4 +19,3 @@
     "test"
   ]
 }
-

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 
@@ -22,6 +22,7 @@ import type {
   TicketContextPayload,
   SupportTicket
 } from '../common/types/app.types';
+import { createServerSupabaseClient } from './create-server-supabase-client';
 
 interface EnsureConversationInput {
   session_id: string;
@@ -87,7 +88,7 @@ export class DataStoreService {
 
     this.supabase =
       supabaseUrl && serviceRoleKey
-        ? createClient(supabaseUrl, serviceRoleKey, {
+        ? createServerSupabaseClient(supabaseUrl, serviceRoleKey, {
             auth: { persistSession: false }
           })
         : null;
