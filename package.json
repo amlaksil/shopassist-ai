@@ -1,0 +1,25 @@
+{
+  "name": "shopassist-ai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run start:dev --workspace backend",
+    "build": "npm run build --workspace frontend && npm run build --workspace backend",
+    "lint": "eslint frontend/src backend/src backend/test --ext .ts,.tsx",
+    "typecheck": "npm run typecheck --workspace frontend && npm run typecheck --workspace backend",
+    "test": "npm run test --workspace backend",
+    "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.61.0"
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "682ff33d-08a0-4c0c-b7a7-7f25c6dff8d0",
+    "order_id": "1cf7e6f9-26fe-440a-b905-fbe00da8a302",
+    "status": "approved",
+    "reason": "Wrong size ordered",
+    "requested_at": "2026-06-12T08:55:00.000Z",
+    "updated_at": "2026-06-12T09:20:00.000Z"
+  },
+  {
+    "id": "57a1f9f0-f75f-4975-b854-ad8d8440b874",
+    "order_id": "f9b5ba34-6642-4f8d-a74d-9260a4539c73",
+    "status": "completed",
+    "reason": "Lamp arrived damaged",
+    "requested_at": "2026-06-08T09:10:00.000Z",
+    "updated_at": "2026-06-10T15:25:00.000Z"
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "a3c42a0c-9c0f-4dfa-8ab6-e7661fd8d2bb",
+    "order_id": "8db8d98e-06d9-47ff-a991-e5528de74cea",
+    "product_name": "Atlas Wireless Headphones",
+    "sku": "ATL-HDP-001",
+    "quantity": 1,
+    "unit_price": 179,
+    "currency": "USD",
+    "created_at": "2026-06-03T10:25:00.000Z"
+  },
+  {
+    "id": "00a436f7-4838-405e-8a45-c6e720d6458a",
+    "order_id": "f86a5f2d-c8bd-4cf0-a837-7cc20caf0b67",
+    "product_name": "Northstar Everyday Backpack",
+    "sku": "NOR-BAG-020",
+    "quantity": 1,
+    "unit_price": 96,
+    "currency": "USD",
+    "created_at": "2026-06-09T09:45:00.000Z"
+  },
+  {
+    "id": "0cf96295-3a88-45bd-9b72-3454cd673b2a",
+    "order_id": "c3c55e67-9bb1-4574-b8bc-e2865e27ce77",
+    "product_name": "Terra Insulated Bottle",
+    "sku": "TER-BTL-145",
+    "quantity": 1,
+    "unit_price": 34,
+    "currency": "USD",
+    "created_at": "2026-06-11T17:12:00.000Z"
+  },
+  {
+    "id": "cfd6e395-3543-4df8-b8af-e95f7fe93fda",
+    "order_id": "1cf7e6f9-26fe-440a-b905-fbe00da8a302",
+    "product_name": "Drift Performance Sneakers",
+    "sku": "DRF-SHO-440",
+    "quantity": 1,
+    "unit_price": 128,
+    "currency": "USD",
+    "created_at": "2026-06-10T13:22:00.000Z"
+  },
+  {
+    "id": "e9d8ad95-d7ef-48a7-b7c0-4824a1551dcf",
+    "order_id": "9b843642-3f57-4f42-8d9e-cbc3f9a4a1db",
+    "product_name": "Mira Ceramic Skincare Fridge",
+    "sku": "MIR-BEA-305",
+    "quantity": 1,
+    "unit_price": 149,
+    "currency": "USD",
+    "created_at": "2026-04-22T11:18:00.000Z"
+  },
+  {
+    "id": "f68e2373-2298-44ce-8707-97002c06b2a8",
+    "order_id": "f9b5ba34-6642-4f8d-a74d-9260a4539c73",
+    "product_name": "Luma Smart Desk Lamp",
+    "sku": "LUM-LMP-210",
+    "quantity": 1,
+    "unit_price": 72,
+    "currency": "USD",
+    "created_at": "2026-06-02T15:05:00.000Z"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "declaration": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "types": [
+      "node",
+      "jest",
+      "ws"
+    ]
+  },
+  "include": [
+    "src",
+    "scripts",
+    "test"
+  ]
+}

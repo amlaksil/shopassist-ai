@@ -1,0 +1,8 @@
+id,name,sku,description,price,currency,category,inventory_status,attributes
+31d564b1-1d0c-4db9-83af-98ca58ef56f7,Atlas Wireless Headphones,ATL-HDP-001,"Over-ear wireless headphones with active noise cancellation, USB-C fast charging, and 32-hour battery life.",179.00,USD,audio,in_stock,"bluetooth 5.3|noise cancellation|32-hour battery|usb-c"
+7ddfc3cb-63af-48f7-8b58-d7d73c669f44,Northstar Everyday Backpack,NOR-BAG-020,"Water-resistant commuter backpack with a 16-inch laptop sleeve and modular interior pockets.",96.00,USD,bags,in_stock,"water-resistant|laptop sleeve|carry-on friendly"
+1fc4dd16-4257-4030-a7e5-b6d3df4b0b93,Luma Smart Desk Lamp,LUM-LMP-210,"Adjustable LED desk lamp with touch dimming, color temperature presets, and a built-in USB charging port.",72.00,USD,home office,low_stock,"touch dimming|usb charging|warm and cool light"
+e21bf2e0-db5a-4db8-b3b4-6e779d9584b8,Terra Insulated Bottle,TER-BTL-145,"Vacuum-insulated stainless steel bottle that keeps drinks cold for 24 hours or hot for 12 hours.",34.00,USD,lifestyle,in_stock,"24-hour cold|12-hour hot|bpa free"
+dcab0f8d-677a-41bc-aad8-c15db3be89d2,Drift Performance Sneakers,DRF-SHO-440,"Lightweight knit sneakers designed for all-day wear with responsive foam cushioning.",128.00,USD,footwear,backorder,"knit upper|foam cushioning|everyday comfort"
+9088117f-9dd8-443c-90c4-2e093f00f8a6,Mira Ceramic Skincare Fridge,MIR-BEA-305,"Compact mini fridge for skincare storage with quiet cooling mode and a mirrored front door.",149.00,USD,beauty tech,in_stock,"quiet cooling|mirrored door|compact"
+
