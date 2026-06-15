@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AdminModule } from './admin/admin.module';
 import { AiModule } from './ai/ai.module';
+import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { CommerceModule } from './commerce/commerce.module';
 import { validateEnv } from './config/env.validation';
@@ -18,6 +19,7 @@ import { TicketModule } from './ticket/ticket.module';
       isGlobal: true,
       validate: validateEnv
     }),
+    AuthModule,
     SupabaseModule,
     AiModule,
     CommerceModule,

@@ -92,6 +92,25 @@ create table if not exists refunds (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists support_admin_emails (
+  email text primary key,
+  display_name text not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists admin_activity_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_email text not null,
+  actor_name text not null,
+  action text not null,
+  target_type text not null,
+  target_id text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists conversations (
   id uuid primary key default gen_random_uuid(),
   session_id text not null unique,
@@ -153,3 +172,65 @@ create index if not exists idx_conversations_updated_at on conversations(updated
 create index if not exists idx_messages_session_id on messages(session_id);
 create index if not exists idx_support_tickets_status on support_tickets(status);
 create index if not exists idx_support_tickets_created_at on support_tickets(created_at desc);
+create index if not exists idx_support_admin_emails_is_active on support_admin_emails(is_active);
+create index if not exists idx_admin_activity_logs_target on admin_activity_logs(target_type, target_id);
+create index if not exists idx_admin_activity_logs_created_at on admin_activity_logs(created_at desc);
+
+create or replace function public.is_support_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.support_admin_emails
+    where email = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and is_active = true
+  );
+$$;
+
+do $$
+declare
+  table_name text;
+  protected_tables text[] := array[
+    'faq_articles',
+    'products',
+    'customers',
+    'orders',
+    'order_items',
+    'shipments',
+    'returns',
+    'refunds',
+    'conversations',
+    'messages',
+    'support_tickets',
+    'support_admin_emails',
+    'admin_activity_logs'
+  ];
+begin
+  foreach table_name in array protected_tables loop
+    execute format('alter table public.%I enable row level security', table_name);
+    execute format('drop policy if exists support_admin_select on public.%I', table_name);
+    execute format(
+      'create policy support_admin_select on public.%I for select to authenticated using (public.is_support_admin())',
+      table_name
+    );
+    execute format('drop policy if exists support_admin_insert on public.%I', table_name);
+    execute format(
+      'create policy support_admin_insert on public.%I for insert to authenticated with check (public.is_support_admin())',
+      table_name
+    );
+    execute format('drop policy if exists support_admin_update on public.%I', table_name);
+    execute format(
+      'create policy support_admin_update on public.%I for update to authenticated using (public.is_support_admin()) with check (public.is_support_admin())',
+      table_name
+    );
+    execute format('drop policy if exists support_admin_delete on public.%I', table_name);
+    execute format(
+      'create policy support_admin_delete on public.%I for delete to authenticated using (public.is_support_admin())',
+      table_name
+    );
+  end loop;
+end $$;

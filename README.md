@@ -20,6 +20,8 @@ This project is designed to show the kind of practical engineering work a real p
 - Knowledge base and product catalog grounding
 - Conversation and message storage
 - Support ticket creation when escalation is required
+- Admin sign-in with Supabase Auth and backend-verified support access
+- Admin action audit logging for ticket updates
 - Simple admin dashboard with conversation and ticket summaries
 - Input validation, health endpoint, and environment-based configuration
 - Sample FAQ and product data under [`data/`](data)
@@ -31,14 +33,16 @@ This project is designed to show the kind of practical engineering work a real p
 - Database: Supabase / PostgreSQL
 - AI: OpenAI, Anthropic/Claude, Gemini, provider-based architecture
 - Testing: Jest unit tests for backend chat flow
+- CI: GitHub Actions for lint, typecheck, tests, and builds on PRs to `main`
 
 ## Architecture overview
 
 ### Frontend
 
-- [`frontend/src/App.tsx`](frontend/src/App.tsx) switches between the customer chat and admin dashboard views.
+- [`frontend/src/App.tsx`](frontend/src/App.tsx) serves the customer chat at `/` and protects the admin workspace at `/admin`.
 - [`frontend/src/components/ChatPanel.tsx`](frontend/src/components/ChatPanel.tsx) manages chat state, loading, errors, and customer detail collection.
 - [`frontend/src/components/DashboardPanel.tsx`](frontend/src/components/DashboardPanel.tsx) shows operational metrics and recent support activity.
+- [`frontend/src/components/AdminAuthPanel.tsx`](frontend/src/components/AdminAuthPanel.tsx) handles support-team sign in and local account creation for approved emails.
 
 ### Backend
 
@@ -49,6 +53,7 @@ This project is designed to show the kind of practical engineering work a real p
 - [`backend/src/ticket`](backend/src/ticket) validates customer details and creates support tickets.
 - [`backend/src/supabase`](backend/src/supabase) abstracts persistence with Supabase plus an in-memory fallback for local demo mode.
 - [`backend/src/admin`](backend/src/admin) exposes the admin dashboard summary endpoint.
+- [`backend/src/auth`](backend/src/auth) verifies Supabase access tokens and restricts admin routes to approved support accounts.
 - [`backend/src/health`](backend/src/health) provides service health and runtime mode visibility.
 
 ### AI provider architecture
@@ -81,6 +86,7 @@ Run the SQL in [`database/schema.sql`](database/schema.sql) inside Supabase SQL 
 - `conversations`
 - `messages`
 - `support_tickets`
+- `support_admin_emails`
 
 ## Local Supabase setup
 
@@ -100,6 +106,7 @@ The local stack uses these ports to avoid conflicts with other Supabase projects
 Schema and sample FAQ/product data are applied automatically from:
 
 - [`supabase/migrations/20250608121500_init_schema.sql`](supabase/migrations/20250608121500_init_schema.sql)
+- [`supabase/migrations/20260613160000_add_admin_auth_and_rls.sql`](supabase/migrations/20260613160000_add_admin_auth_and_rls.sql)
 - [`supabase/seed.sql`](supabase/seed.sql)
 
 ## Sample data and seeding
@@ -134,6 +141,15 @@ Frontend:
 
 ```bash
 cp frontend/.env.example frontend/.env
+```
+
+Set:
+
+```bash
+VITE_API_BASE_URL=http://localhost:3000/api
+VITE_SUPABASE_URL=http://127.0.0.1:55321
+VITE_SUPABASE_ANON_KEY=your_publishable_key
+VITE_ADMIN_ALLOW_SIGNUP=false
 ```
 
 Backend:
@@ -207,13 +223,152 @@ AI_PROVIDER=mock
 5. If the request needs a human or refund review, the bot asks for `name`, `email`, and `issue summary`.
 6. The customer fills the escalation form and clicks `Create support ticket`.
 7. A support ticket is created with status `open`.
-8. Switch to the admin dashboard view to inspect conversations, open tickets, issue categories, and failures.
+8. Open `/admin`, sign in with an approved support email, and inspect conversations and tickets.
+
+## Admin access
+
+The customer experience stays public at `/`. The support workspace is protected at `/admin`.
+
+The local Supabase seed includes these approved support emails:
+
+- `support@shopassist.local`
+- `hana@shopassist.local`
+- `samuel@shopassist.local`
+- `meklit@shopassist.local`
+
+For a production-like local setup, open sign-up is disabled by default.
+
+To provision the first admin locally:
+
+1. Add or keep the email in `support_admin_emails`
+2. Create the auth user in Supabase Studio under `Authentication -> Users`
+3. Sign in on `/admin`
+
+If you explicitly want the older local self-sign-up flow for testing, set:
+
+```bash
+VITE_ADMIN_ALLOW_SIGNUP=true
+```
+
+and temporarily re-enable signups in [`supabase/config.toml`](supabase/config.toml).
+
+Protection happens in two places:
+
+- Supabase Auth verifies the session
+- backend guards verify the email against `support_admin_emails`
+
+RLS is enabled for the application tables, using `public.is_support_admin()` for authenticated admin access.
+
+Customer-facing endpoints also include basic request rate limiting to reduce spam and abusive traffic.
+
+## CI workflow
+
+GitHub Actions is configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+It runs on every pull request targeting `main` and checks:
+
+- linting
+- TypeScript typechecking
+- backend tests
+- frontend and backend builds
+
+Local equivalents:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Vercel deployment
+
+This repo is ready for Vercel preview deployments for the frontend workspace.
+
+Important setup:
+
+- import the repo into Vercel
+- set the **Root Directory** to `frontend`
+- Vercel will use [`frontend/vercel.json`](frontend/vercel.json) so direct visits to `/admin` and other client-side routes still load the app
+
+Recommended Vercel environment variables:
+
+```bash
+VITE_API_BASE_URL=https://your-backend-url/api
+VITE_SUPABASE_URL=https://your-supabase-project-url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_ADMIN_ALLOW_SIGNUP=false
+```
+
+### Production and preview behavior
+
+Once the GitHub repo is connected to Vercel:
+
+- pushes to `main` can deploy the production frontend
+- pull requests automatically get **Preview Deployments**
+- those preview URLs are the easiest QA environment for reviewing UI changes before merge
+
+### Backend deployment note
+
+The current NestJS backend is not configured for direct Vercel deployment in this repo layout.
+
+For a production-style setup:
+
+- deploy the frontend to Vercel
+- deploy the backend to a Node-friendly host such as Render, Railway, or Fly.io
+- point `VITE_API_BASE_URL` in Vercel to that backend
+
+### Recommended backend deployment: AWS EC2
+
+This repo is prepared for an `EC2 + PM2 + Nginx` backend deployment.
+
+Deployment assets included:
+
+- [`docs/deployment-ec2.md`](docs/deployment-ec2.md)
+- [`backend/ecosystem.config.cjs`](backend/ecosystem.config.cjs)
+- [`backend/.env.production.example`](backend/.env.production.example)
+- [`deploy/nginx/shopassist-api.conf`](deploy/nginx/shopassist-api.conf)
+
+Recommended production shape:
+
+- frontend on Vercel
+- backend on EC2
+- database and auth on Supabase
+
+Minimum backend environment variables:
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+SUPABASE_URL=https://your-supabase-project-url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+You can switch providers by changing:
+
+- `AI_PROVIDER=openai` and `OPENAI_API_KEY`
+- `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`
+- `AI_PROVIDER=mock` for smoke testing without a live model
+
+After the backend is live, update the Vercel frontend env:
+
+```bash
+VITE_API_BASE_URL=https://api.yourdomain.com/api
+```
+
+Detailed EC2 steps are in [`docs/deployment-ec2.md`](docs/deployment-ec2.md).
+
+### Alternative backend deployment
+
+If you prefer a managed Node host instead of EC2, you can still deploy the backend to Render, Railway, or Fly.io and point the Vercel frontend to that API URL.
 
 ## API summary
 
 - `POST /api/chat`
 - `POST /api/tickets`
 - `GET /api/health`
+- `GET /api/admin/session`
 - `GET /api/admin/dashboard`
 - `GET /api/conversations/recent`
 - `GET /api/conversations/:sessionId/messages`
@@ -242,7 +397,6 @@ This project demonstrates:
 
 ## Future improvements
 
-- Supabase Auth for admin login
 - RLS policies for tenant and customer isolation
 - pgvector / RAG search over larger support knowledge bases
 - Slack or email notifications for new tickets
@@ -255,6 +409,4 @@ This project demonstrates:
 
 ## Notes for MVP scope
 
-- Admin auth is intentionally omitted for the first version.
-- Supabase Auth and Row Level Security are the recommended next steps before a production deployment.
 - The in-memory fallback is for local demo convenience; persistent environments should use Supabase.

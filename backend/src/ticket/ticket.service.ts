@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import type {
+  AdminSessionUser,
   ConversationStatus,
   CustomerInfo,
   SupportTicket,
@@ -52,6 +53,7 @@ export class TicketService {
   }
 
   async updateTicket(input: {
+    actor: AdminSessionUser;
     id: string;
     status?: SupportTicket['status'];
     assignee?: string;
@@ -64,6 +66,19 @@ export class TicketService {
       id: input.id,
       status: input.status,
       assignee: input.assignee
+    });
+
+    await this.dataStoreService.recordAdminActivity({
+      actor: input.actor,
+      action: 'ticket_updated',
+      target_type: 'support_ticket',
+      target_id: ticket.id,
+      details: {
+        status: ticket.status,
+        assignee: ticket.assignee ?? 'Unassigned',
+        issue_category: ticket.issue_category,
+        session_id: ticket.session_id
+      }
     });
 
     await this.conversationService.touchConversation({

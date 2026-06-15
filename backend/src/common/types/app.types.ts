@@ -13,6 +13,11 @@ export type MessageRole = 'user' | 'assistant';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type PriorityLevel = 'high' | 'medium' | 'low';
 
+export interface AdminSessionUser {
+  email: string;
+  display_name: string;
+}
+
 export interface CustomerInfo {
   name?: string;
   email?: string;
@@ -246,4 +251,15 @@ export interface SupportTicketResponsePayload {
   provider: string;
   model: string;
   ticket_id: string;
+}
+
+export interface AdminActivityLog {
+  id: string;
+  actor_email: string;
+  actor_name: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  details: Record<string, unknown>;
+  created_at: string;
 }

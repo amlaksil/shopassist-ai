@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   fetchConversationMessages,
@@ -8,7 +8,6 @@ import {
 } from '../lib/api';
 import {
   buildAssignedTo,
-  buildBotFailureReason,
   derivePriorityFromConversation,
   derivePriorityFromTicket,
   formatDateTime,
@@ -47,6 +46,7 @@ const emptyStats: DashboardStats = {
 
 interface DashboardPanelProps {
   activeSection: WorkspaceSection;
+  authToken: string;
   searchQuery: string;
   viewFilter: 'all' | 'waiting' | 'resolved';
   onNavigate: (section: WorkspaceSection, filter?: 'all' | 'waiting' | 'resolved') => void;
@@ -124,6 +124,7 @@ function buildTicketStageCopy(ticket: SupportTicket) {
 
 export function DashboardPanel({
   activeSection,
+  authToken,
   searchQuery,
   viewFilter,
   onNavigate
@@ -136,10 +137,6 @@ export function DashboardPanel({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [ticketActionLoading, setTicketActionLoading] = useState(false);
-
-  useEffect(() => {
-    void loadDashboard();
-  }, []);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -227,7 +224,7 @@ export function DashboardPanel({
     setPreviewLoading(true);
 
     try {
-      const response = await fetchConversationMessages(conversation.session_id);
+      const response = await fetchConversationMessages(conversation.session_id, authToken);
       setConversationMessages(response);
       setError(null);
     } catch (requestError) {
@@ -248,15 +245,15 @@ export function DashboardPanel({
     void handleViewConversation(linkedConversation);
   }
 
-  async function loadDashboard(showLoading = true) {
+  const loadDashboard = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
         setLoading(true);
       }
 
       const [dashboardResponse, recentConversationResponse] = await Promise.all([
-        fetchDashboardStats(),
-        fetchRecentConversations()
+        fetchDashboardStats(authToken),
+        fetchRecentConversations(authToken)
       ]);
 
       const mergedConversations =
@@ -276,7 +273,11 @@ export function DashboardPanel({
         setLoading(false);
       }
     }
-  }
+  }, [authToken]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   async function handleTicketAction(action: {
     status?: 'open' | 'in_progress' | 'waiting_on_customer' | 'resolved';
@@ -290,6 +291,7 @@ export function DashboardPanel({
       setTicketActionLoading(true);
       const updated = await updateSupportTicket({
         id: selectedTicket.id,
+        token: authToken,
         status: action.status,
         assignee: action.assignee
       });

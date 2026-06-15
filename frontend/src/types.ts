@@ -14,14 +14,16 @@ export type ConversationStatus =
 export type WorkspaceSection =
   | 'dashboard'
   | 'conversations'
-  | 'tickets'
-  | 'help_center'
-  | 'reports'
-  | 'settings';
+  | 'tickets';
 
 export interface NavigationItem {
   id: WorkspaceSection;
   label: string;
+}
+
+export interface AdminSession {
+  email: string;
+  display_name: string;
 }
 
 export interface ChatMessage {

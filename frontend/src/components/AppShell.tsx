@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { NavigationItem, WorkspaceSection } from '../types';
+import type { AdminSession, NavigationItem, WorkspaceSection } from '../types';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -12,6 +12,8 @@ interface AppShellProps {
   onSectionChange: (section: WorkspaceSection) => void;
   onSearchChange: (value: string) => void;
   onExperienceChange: () => void;
+  onSignOut: () => void;
+  adminUser: AdminSession;
   children: ReactNode;
 }
 
@@ -23,6 +25,8 @@ export function AppShell({
   onSectionChange,
   onSearchChange,
   onExperienceChange,
+  onSignOut,
+  adminUser,
   children
 }: AppShellProps) {
   const activeItem = navigation.find((item) => item.id === activeSection) ?? navigation[0];
@@ -38,8 +42,10 @@ export function AppShell({
       <div className="app-shell__main">
         <TopBar
           activeItem={activeItem}
+          adminUser={adminUser}
           onExperienceChange={onExperienceChange}
           onSearchChange={onSearchChange}
+          onSignOut={onSignOut}
           searchPlaceholder={searchPlaceholder}
           searchQuery={searchQuery}
         />

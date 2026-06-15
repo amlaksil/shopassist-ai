@@ -14,7 +14,6 @@ export function Sidebar({ navigation, activeSection, onSectionChange }: SidebarP
           SA
         </div>
         <div>
-          <p className="sidebar__eyebrow">Support dashboard</p>
           <h1>ShopAssist AI</h1>
         </div>
       </div>

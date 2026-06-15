@@ -7,7 +7,8 @@ describe('TicketService', () => {
     createSupportTicket: jest.fn(),
     getLatestProviderMetadata: jest.fn(),
     listOpenTickets: jest.fn(),
-    updateSupportTicket: jest.fn()
+    updateSupportTicket: jest.fn(),
+    recordAdminActivity: jest.fn()
   };
   const conversationService = {
     touchConversation: jest.fn(),
@@ -75,9 +76,14 @@ describe('TicketService', () => {
       email: 'jamie@example.com',
       issue_category: 'shipping_delay'
     });
+    dataStoreService.recordAdminActivity.mockResolvedValue({});
     conversationService.touchConversation.mockResolvedValue({});
 
     const response = await service.updateTicket({
+      actor: {
+        email: 'hana@shopassist.local',
+        display_name: 'Hana Tesfaye'
+      },
       id: 'ticket_12345678',
       status: 'in_progress',
       assignee: 'Order desk'
@@ -89,6 +95,21 @@ describe('TicketService', () => {
       id: 'ticket_12345678',
       status: 'in_progress',
       assignee: 'Order desk'
+    });
+    expect(dataStoreService.recordAdminActivity).toHaveBeenCalledWith({
+      actor: {
+        email: 'hana@shopassist.local',
+        display_name: 'Hana Tesfaye'
+      },
+      action: 'ticket_updated',
+      target_type: 'support_ticket',
+      target_id: 'ticket_12345678',
+      details: {
+        status: 'in_progress',
+        assignee: 'Order desk',
+        issue_category: 'shipping_delay',
+        session_id: 'session_1'
+      }
     });
     expect(conversationService.touchConversation).toHaveBeenCalledWith({
       session_id: 'session_1',

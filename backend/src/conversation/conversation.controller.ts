@@ -1,8 +1,10 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { ConversationService } from './conversation.service';
 
 @Controller('conversations')
+@UseGuards(AdminAuthGuard)
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
 
@@ -16,4 +18,3 @@ export class ConversationController {
     return this.conversationService.getHistory(sessionId);
   }
 }
-
