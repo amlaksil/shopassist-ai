@@ -1,3 +1,7 @@
+/*
+ * Provider router for model calls so the rest of the backend depends on one interface instead of
+ * individual SDK implementations.
+ */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 

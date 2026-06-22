@@ -1,3 +1,7 @@
+/*
+ * Persistence adapter for Supabase-backed storage with a local in-memory fallback for demo mode
+ * and offline development.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { SupabaseClient } from '@supabase/supabase-js';

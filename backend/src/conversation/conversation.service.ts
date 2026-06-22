@@ -1,3 +1,7 @@
+/*
+ * Thin conversation layer that centralizes transcript writes, history reads, and recent queue
+ * access for the rest of the application.
+ */
 import { Injectable } from '@nestjs/common';
 
 import type {
@@ -42,4 +46,3 @@ export class ConversationService {
     return this.dataStoreService.listRecentConversations(limit);
   }
 }
-

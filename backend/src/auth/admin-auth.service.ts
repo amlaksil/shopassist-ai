@@ -1,3 +1,7 @@
+/*
+ * Verifies Supabase sessions on the backend and restricts admin access to approved support
+ * accounts.
+ */
 import {
   ForbiddenException,
   Injectable,

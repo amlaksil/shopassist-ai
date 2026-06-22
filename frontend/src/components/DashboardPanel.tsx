@@ -1,3 +1,7 @@
+/*
+ * Admin workspace panel for queue status, ticket actions, conversation review, and support-side
+ * follow-up decisions.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {

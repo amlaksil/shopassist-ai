@@ -1,3 +1,7 @@
+/*
+ * Validates escalation details, creates support tickets, syncs conversation status, and records
+ * admin ticket actions.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import type {
