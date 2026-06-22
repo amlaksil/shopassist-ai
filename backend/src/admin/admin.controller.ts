@@ -1,3 +1,6 @@
+/*
+ * Protected admin endpoints for the signed-in support workspace.
+ */
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 
 import type { AuthenticatedAdminRequest } from '../auth/admin-auth.guard';

@@ -1,3 +1,6 @@
+/*
+ * Sign-in surface for approved support accounts before they can open the admin workspace.
+ */
 import { FormEvent, useState } from 'react';
 
 type AdminAuthMode = 'sign_in' | 'sign_up';
@@ -63,11 +66,8 @@ export function AdminAuthPanel({
         </div>
 
         <div className="admin-auth-card__notice">
-          <strong>Approved local emails</strong>
-          <span>
-            Use one of the seeded support emails like support@shopassist.local or
-            hana@shopassist.local.
-          </span>
+          <strong>Approved support accounts only</strong>
+          <span>Sign in with an allowlisted support email that has already been provisioned.</span>
         </div>
 
         {status === 'loading' ? (
@@ -103,7 +103,7 @@ export function AdminAuthPanel({
               <input
                 autoComplete="email"
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="support@shopassist.local"
+                placeholder="you@support-team.com"
                 type="email"
                 value={email}
               />

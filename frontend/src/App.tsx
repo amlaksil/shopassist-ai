@@ -1,3 +1,6 @@
+/*
+ * Entry point for the customer chat at `/` and the protected support workspace at `/admin`.
+ */
 import { useEffect, useState } from 'react';
 
 import { AdminAuthPanel } from './components/AdminAuthPanel';

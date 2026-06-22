@@ -1,3 +1,6 @@
+/*
+ * Lightweight service health endpoint with runtime mode and Supabase readiness visibility.
+ */
 import { Controller, Get } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 

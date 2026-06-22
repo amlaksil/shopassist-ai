@@ -1,3 +1,7 @@
+/*
+ * Core support workflow that records the conversation, loads business context, decides whether to
+ * answer, clarify, or escalate, and persists the assistant outcome.
+ */
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 
 import { AiService } from '../ai/ai.service';

@@ -1,3 +1,7 @@
+/*
+ * Customer chat surface that manages the transcript, order context, escalation prompts, and
+ * support ticket handoff from the public experience.
+ */
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { createSupportTicket, sendChatMessage } from '../lib/api';

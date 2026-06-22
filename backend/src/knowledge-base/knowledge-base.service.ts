@@ -1,3 +1,6 @@
+/*
+ * Ranks FAQ and product data so support answers can be grounded in local business knowledge.
+ */
 import { Injectable } from '@nestjs/common';
 
 import type { KnowledgeContext } from '../common/types/app.types';
