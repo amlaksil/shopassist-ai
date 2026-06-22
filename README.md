@@ -2,16 +2,29 @@
 
 ![ShopAssist AI workspace preview](docs/assets/shopassist-thumbnail.png)
 
-I built ShopAssist AI to explore what a production-minded AI support workflow for e-commerce can look like. The project combines customer self-service, grounded support answers, order-aware automation, and a human support queue that keeps context attached when the assistant should stop and hand off.
+ShopAssist AI is a full-stack customer support platform for e-commerce teams. It combines a React customer chat experience, a NestJS API, Supabase/PostgreSQL persistence, and a provider-based LLM layer that supports OpenAI, Anthropic, Gemini, and a local mock mode for development.
 
 ## What the product does
 
-- answers support questions with knowledge-backed and product-aware context
-- handles order tracking, returns, refunds, and shipping issues
-- asks for clarification when order details or customer details are missing
-- escalates unresolved issues into tickets with transcript and issue context
-- gives support teammates a focused admin workspace for triage and follow-up
-- protects the admin workspace with backend-verified support access
+ShopAssist AI helps e-commerce teams answer customer questions, keep conversation context, and escalate issues that need human follow-up.
+
+- Answers support questions using knowledge-backed and product-aware context
+- Handles order tracking, returns, refunds, and shipping questions
+- Asks for clarification when order or customer details are missing
+- Logs conversations so support history and context are preserved
+- Escalates unresolved issues into tickets with transcript and issue context
+- Gives support teammates a focused admin workspace for triage and follow-up
+- Protects the admin workspace with backend-verified support access
+
+## What this project demonstrates
+
+This project shows practical engineering work needed for AI-enabled support automation.
+
+- Clean backend architecture with NestJS modules and services
+- Supabase/PostgreSQL persistence for conversations, messages, and tickets
+- Provider-based LLM integration for OpenAI, Anthropic, Gemini, and local mock responses
+- Production-minded configuration, validation, and error handling
+- Separation between customer-facing chat and internal support workflows
 
 ## Core workflows
 
@@ -66,126 +79,23 @@ flowchart TD
     Resolve --> History[Keep the transcript and resolution history for later review]
 ```
 
-## Highlights
-
-- customer chat at `/` with quick actions and optional order context
-- support workspace at `/admin` with protected access, queue status, and ticket actions
-- provider-based AI layer with `OpenAI`, `Anthropic`, `Gemini`, and `mock` mode
-- Supabase-backed persistence for conversations, messages, tickets, and admin access rules
-- support ticket escalation for missing delivery, damaged item, wrong item, refund, and return flows
-- CI on pull requests to `main` for lint, typecheck, tests, and builds
-- EC2 deployment path for the backend and Vercel deployment path for the frontend
-
-## Suggested screenshots for the public README
-
-I recommend replacing or extending the preview image above with three real product screenshots before publishing widely.
-
-### 1. Customer self-service answer
-
-Show:
-
-- the customer chat UI
-- an order-aware answer
-- no escalation yet
-
-Suggested prompt:
-
-```text
-Where is my order ORD-1001?
-```
-
-Good screenshot outcome:
-
-- the assistant answers directly
-- tracking or delivery status is visible
-- the UI looks like self-service support, not a generic chatbot
-
-### 2. Escalation from chat to support
-
-Show:
-
-- the assistant recognizing a higher-risk issue
-- the conversation moving toward human follow-up
-
-Suggested prompt:
-
-```text
-My order says delivered but I did not receive it. ORD-1001
-```
-
-Good screenshot outcome:
-
-- the assistant explains the next step clearly
-- the reply suggests handoff or support follow-up
-- the context feels operational, not just conversational
-
-### 3. Admin ticket workflow
-
-Show:
-
-- the `/admin` ticket or conversation view
-- assignee, status, and ticket context
-- one ticket in progress or waiting on customer
-
-Good screenshot outcome:
-
-- the queue is populated
-- the ticket detail panel is visible
-- linked order context and current status can be seen quickly
-
-## Sample demo conversations
-
-These are the best prompts to prepare before taking screenshots or recording a demo.
-
-### Customer support answer
-
-```text
-Where is my order ORD-1001?
-```
-
-### Return eligibility
-
-```text
-Can I return order ORD-1005?
-```
-
-### Refund status
-
-```text
-Has my refund been processed for ORD-1004?
-```
-
-### Missing delivery escalation
-
-```text
-My order says delivered but I did not receive it. ORD-1001
-```
-
-### Damaged item escalation
-
-```text
-My order arrived damaged. ORD-1006
-```
-
 ## Tech stack
 
-- Frontend: React, TypeScript, Vite
+- Frontend: React, TypeScript, Vite, clean custom CSS
 - Backend: NestJS, TypeScript
-- Persistence and auth: Supabase / PostgreSQL
-- AI providers: OpenAI, Anthropic, Gemini, mock provider
-- Testing: Jest
-- CI: GitHub Actions
+- Database: Supabase / PostgreSQL
+- AI: OpenAI, Anthropic/Claude, Gemini, provider-based architecture
+- Testing: Jest unit tests for backend chat flow
+- CI: GitHub Actions for lint, typecheck, tests, and builds on PRs to `main`
 
-## Project structure
+### AI provider architecture
 
-```text
-/frontend
-/backend
-/supabase
-/data
-/docs
-/deploy
-```
+The controller never calls a model SDK directly. `ChatService` depends on `AiService`, which selects a provider based on environment variables:
+
+- `AI_PROVIDER=openai`
+- `AI_PROVIDER=anthropic`
+- `AI_PROVIDER=gemini`
+- `AI_PROVIDER=mock`
 
 ## Local development
 
@@ -261,7 +171,18 @@ The customer experience stays public at `/`. The admin workspace at `/admin` is 
 - Supabase Auth verifies the signed-in user
 - the backend checks that the email is approved in `support_admin_emails`
 
+RLS is enabled for the application tables, for authenticated admin access.
+
+Customer-facing endpoints also include basic request rate limiting to reduce spam and abusive traffic.
+
 Open self-sign-up for admins is disabled by default. For production-style use, provision the support account first and then sign in.
+
+If you explicitly want the local self-sign-up flow for testing, set:
+
+```bash
+VITE_ADMIN_ALLOW_SIGNUP=true
+```
+and temporarily re-enable signups in [`supabase/config.toml`](supabase/config.toml).
 
 ## API summary
 
@@ -274,6 +195,26 @@ Open self-sign-up for admins is disabled by default. For production-style use, p
 - `GET /api/conversations/:sessionId/messages`
 - `GET /api/tickets/open`
 - `PATCH /api/tickets/:id`
+
+## CI workflow
+
+GitHub Actions is configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+It runs on every pull request targeting `main` and checks:
+
+- linting
+- TypeScript typechecking
+- backend tests
+- frontend and backend builds
+
+Local equivalents:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
 
 ## Deployment
 
@@ -289,16 +230,9 @@ VITE_SUPABASE_URL=https://your-supabase-project-url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_ADMIN_ALLOW_SIGNUP=false
 ```
-
-If a shared Vercel URL asks visitors to sign in with Vercel first, the project is using deployment protection on preview builds. For a public demo, either:
-
-- share the production deployment URL
-- attach a public custom domain
-- disable preview protection in the Vercel project settings
-
 ### Backend
 
-The backend is prepared for an `EC2 + PM2 + Nginx` deployment.
+The backend is prepared for AWS `EC2 + PM2 + Nginx` deployment.
 
 Deployment assets:
 
@@ -307,32 +241,37 @@ Deployment assets:
 - `backend/.env.production.example`
 - `deploy/nginx/shopassist-api.conf`
 
-Recommended production shape:
+## Screenshots
 
-- frontend on Vercel
-- backend on EC2
-- database and auth on Supabase
+- Customer self-service answer
 
-## CI
+![Customer self-service answer](docs/assets/customer-self-service-answer.png)
 
-GitHub Actions runs on pull requests to `main` and checks:
+- Escalation from chat to support
 
-- linting
-- typechecking
-- backend tests
-- frontend and backend builds
+![Customer self-service answer](docs/assets/escalation-from-chat-to-support.png)
 
-Local equivalents:
 
-```bash
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
+![Customer self-service answer](docs/assets/e00.png)
 
-## Notes
+- Admin ticket workflow
 
-- the in-memory fallback is for local demo convenience; persistent environments should use Supabase
-- the repo includes demo commerce data to exercise support flows end to end
-- if you are evaluating the public deployment, use the production URL rather than a protected Vercel preview link
+![Customer self-service answer](docs/assets/A01.png)
+
+![Customer self-service answer](docs/assets/A02.png)
+
+![Customer self-service answer](docs/assets/A03.png)
+
+![Customer self-service answer](docs/assets/A04.png)
+
+![Customer self-service answer](docs/assets/A05.png)
+
+## Future improvements
+
+- pgvector / RAG search over larger support knowledge bases
+- Slack or email notifications for new tickets
+- n8n workflow integration for escalations and CRM sync
+- Stripe subscription gate for SaaS-style monetization
+- multilingual support
+- expanded analytics dashboard
+- voice agent version with Vapi, ElevenLabs, or Twilio
